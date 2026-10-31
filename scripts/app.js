@@ -16,6 +16,8 @@ export class App {
   }
 
   async init() {
+    const year = document.getElementById('footerYear');
+    if (year) year.textContent = `© ${new Date().getFullYear()} Sakura Library`;
     this._initTheme();
     this._initGlobalSearch();
     this._initFavButton();
@@ -67,15 +69,18 @@ export class App {
     };
     this._renderFavCount();
     window.addEventListener('storage', () => this._renderFavCount());
+    window.addEventListener('tsuki:favorites-changed', () => this._renderFavCount());
   }
 
   _renderFavCount() {
     const count = this.elements.favCount;
-    if (!count) return;
     const n = this.storage.getFavorites().size;
-    count.textContent = `${n} favoris`;
+    if (count) count.textContent = `${n} favoris`;
+    const navCount = document.getElementById('navFavCount');
+    if (navCount) navCount.textContent = n;
     if (this.elements.favBtn) {
       this.elements.favBtn.setAttribute('aria-label', `Mes favoris (${n})`);
+      this.elements.favBtn.classList.toggle('has-fav', n > 0);
     }
   }
 

@@ -17,9 +17,12 @@ export class HomePage {
     section.className = 'page home-page';
     section.innerHTML = `
       <header class="page-header">
-        <h1>À la une</h1>
-        <p class="page-subtitle">Découvrez les animes les plus populaires du moment.</p>
+        <p class="eyebrow">TON PROCHAIN MONDE COMMENCE ICI</p>
+        <h1>Une histoire à la fois.</h1>
+        <p class="page-subtitle">Des nouvelles obsessions aux classiques qui restent avec toi.</p>
       </header>
+
+      <section id="home-hero" class="feature-hero" aria-label="Anime à découvrir"></section>
 
       <section class="home-section">
         <div class="section-row">
@@ -44,24 +47,38 @@ export class HomePage {
         </div>
         <div id="home-genre" class="grid"></div>
       </section>
+      <section class="home-section">
+        <div class="section-row"><h2 class="section-title">Longs métrages pour ce soir</h2><a href="#/decouvrir?format=MOVIE" class="see-all">Explorer les films ↗</a></div>
+        <div id="home-movies" class="grid"></div>
+      </section>
+      <section class="home-section">
+        <div class="section-row"><h2 class="section-title">Reprendre le fil</h2><a href="#/historique" class="see-all">Tout l'historique ↗</a></div>
+        <div id="home-history" class="grid"></div>
+      </section>
     `;
     this.element = section;
     return section;
   }
 
   async onMount() {
-    // AFFICHAGE INSTANTANÉ avec le catalogue démo embarqué
-    await this._loadSection('home-trending', () => this._fetchDemo({ sort: 'popular', perPage: 6 }));
-    await this._loadSection('home-top', () => this._fetchDemo({ sort: 'score', perPage: 6 }));
-    await this._loadSection('home-genre', () => this._fetchDemo({ genre: 'Action', perPage: 6 }));
-
-    // Puis essayer d'enrichir avec les APIs en arrière-plan (ne bloque pas l'affichage)
-    this._tryEnrichWithAPIs();
+    const [trending, top, action, movies] = await Promise.all([
+      this._loadSection('home-trending', () => this.anilist.searchMedia({ perPage: 6, sort: 'POPULARITY_DESC' })),
+      this._loadSection('home-top', () => this.anilist.searchMedia({ perPage: 6, sort: 'SCORE_DESC' })),
+      this._loadSection('home-genre', () => this.anilist.searchMedia({ perPage: 6, genre: 'Action', sort: 'POPULARITY_DESC' })),
+      this._loadSection('home-movies', () => this.anilist.searchMedia({ perPage: 6, format: 'MOVIE', sort: 'POPULARITY_DESC' })),
+    ]);
+    const first = trending?.results?.[0];
+    if (first) this._renderHero(first);
+    this._renderHistory();
   }
 
-  async _fetchDemo({ sort = 'popular', genre = null, perPage = 20, page = 1 } = {}) {
-    const { getDemoAnimes } = await import('../demo-data.js');
-    return getDemoAnimes({ page, perPage, genre, sort });
+  _renderHero(media) {
+    const hero = this.element.querySelector('#home-hero');
+    const image = media.bannerImage || media.coverImage;
+    hero.style.setProperty('--hero-image', `url("${image}")`);
+    hero.innerHTML = `<div class="hero-copy"><span class="hero-kicker">À DÉCOUVRIR EN CE MOMENT</span><h2>${this.ui.escapeHtml(media.title)}</h2><p>${this.ui.escapeHtml((media.description || '').slice(0, 230))}${media.description?.length > 230 ? '…' : ''}</p><div class="hero-meta"><span>★ ${((media.averageScore || 0) / 10).toFixed(1)}</span><span>${this.ui.escapeHtml(media.format || 'ANIME')}</span><span>${media.episodes || '—'} épisodes</span></div><a class="btn btn-primary" href="#/anime/${encodeURIComponent(media.id)}">Voir la fiche <span>↗</span></a></div><div class="hero-art"><img src="${this.ui.escapeHtml(media.coverImage || '')}" alt="Affiche de ${this.ui.escapeHtml(media.title)}"></div>`;
+    const cover = hero.querySelector('.hero-art img');
+    cover.onerror = () => { cover.onerror = null; cover.src = this.ui.posterFallback(media.title); };
   }
 
   async _loadSection(containerId, loader) {
@@ -74,10 +91,12 @@ export class HomePage {
       container.innerHTML = '';
       const results = data.results || [];
       if (results.length === 0) {
-        container.appendChild(this.ui.renderEmpty('Aucun résultat.'));
-        return;
+        const { getDemoAnimes } = await import('../demo-data.js');
+        results.push(...getDemoAnimes({ perPage: 6, genre: containerId === 'home-genre' ? 'Action' : null, format: containerId === 'home-movies' ? 'MOVIE' : null }).results);
+        if (!results.length) { container.appendChild(this.ui.renderEmpty('Aucun résultat.')); return; }
       }
       results.forEach((m) => {
+        this.storage.saveMedia(m);
         const card = this.ui.renderCard(m, {
           clickable: true,
           showFav: true,
@@ -86,30 +105,37 @@ export class HomePage {
         card._onClick = (media) => this.router.navigate(this.router.routes.detail(media.id));
         card.querySelector('.anime-fav')._onToggle = (id) => {
           const added = this.storage.toggleFavorite(id);
-          const btn = card.querySelector('.anime-fav');
-          btn.textContent = added ? '★' : '☆';
-          btn.setAttribute('aria-label', added ? 'Retirer des favoris' : 'Ajouter aux favoris');
           this.ui.toast(added ? 'Ajouté aux favoris' : 'Retiré des favoris');
+          return added;
         };
         container.appendChild(card);
       });
+      return data;
     } catch (e) {
       console.error(e);
       container.innerHTML = '';
-      container.appendChild(this.ui.renderEmpty('Erreur de chargement.', 'error'));
-      this.ui.toast('Erreur de chargement', 'error');
+      const { getDemoAnimes } = await import('../demo-data.js');
+      const fallback = getDemoAnimes({ perPage: 6, genre: containerId === 'home-genre' ? 'Action' : null, format: containerId === 'home-movies' ? 'MOVIE' : null });
+      fallback.results.forEach((media) => {
+        this.storage.saveMedia(media);
+        const card = this.ui.renderCard(media, { isFavorite: this.storage.isFavorite(media.id) });
+        card._onClick = (item) => this.router.navigate(`/anime/${item.id}`);
+        card.querySelector('.anime-fav')._onToggle = (id) => this.storage.toggleFavorite(id);
+        container.append(card);
+      });
+      return fallback;
     }
   }
 
-  async _tryEnrichWithAPIs() {
-    // Tentative d'enrichissement via les APIs (non bloquant)
-    try {
-      if (this.animedoc?.hasKey?.()) {
-        const data = await this.animedoc.getTrending();
-        // Si l'API répond, on pourrait fusionner, mais on garde le démo pour la stabilité
-      }
-    } catch (e) {
-      // Ignorer — le démo suffit
-    }
+  _renderHistory() {
+    const container = this.element.querySelector('#home-history');
+    const items = this.storage.getHistory().slice(0, 6);
+    if (!items.length) { container.innerHTML = `<p class="empty-state compact-empty">Tes prochains épisodes apparaîtront ici.</p>`; return; }
+    items.forEach((media) => {
+      const card = this.ui.renderCard(media, { isFavorite: this.storage.isFavorite(media.id) });
+      card._onClick = (item) => this.router.navigate(`/anime/${item.id}`);
+      card.querySelector('.anime-fav')._onToggle = (id) => this.storage.toggleFavorite(id);
+      container.append(card);
+    });
   }
 }

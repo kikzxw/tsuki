@@ -5,7 +5,7 @@
    ========================================================================== */
 
 export class AnimeDocAPI {
-  constructor({ baseURL = 'https://api.animedoc.cloud', apiKey = '', cache, timeout = 15000 } = {}) {
+  constructor({ baseURL = '/api/catalog', apiKey = '', cache, timeout = 15000 } = {}) {
     this.baseURL = baseURL;
     this.apiKey = apiKey;
     this.cache = cache;
@@ -17,13 +17,11 @@ export class AnimeDocAPI {
   }
 
   hasKey() {
-    return !!this.apiKey && this.apiKey.trim().length > 0;
+    return this.baseURL.startsWith('/api/catalog') || (!!this.apiKey && this.apiKey.trim().length > 0);
   }
 
   async _fetch(path, options = {}) {
-    if (!this.hasKey()) {
-      throw new Error('Clé API AnimeDoc manquante. Configurez-la dans les paramètres.');
-    }
+    if (!this.hasKey()) throw new Error('Catalogue indisponible.');
 
     const url = `${this.baseURL}${path}`;
     const cacheKey = `animedoc:${path}:${JSON.stringify(options.body || options.params || {})}`;
@@ -31,11 +29,11 @@ export class AnimeDocAPI {
     if (cached) return cached;
 
     const headers = {
-      'X-API-Key': this.apiKey,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       ...options.headers,
     };
+    if (!this.baseURL.startsWith('/api/catalog')) headers['X-API-Key'] = this.apiKey;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeout);

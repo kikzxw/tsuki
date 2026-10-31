@@ -40,6 +40,7 @@ export class DetailPage {
             <button id="detail-fav" class="btn btn-outline">☆ Favoris</button>
             <button id="detail-share" class="btn btn-outline">🔗 Partager</button>
           </div>
+          <div class="detail-list-action"><select id="detail-list-select" aria-label="Choisir une liste"></select><button id="detail-add-list" class="btn btn-outline">＋ Ajouter à la liste</button></div>
         </div>
       </div>
 
@@ -104,43 +105,44 @@ export class DetailPage {
     this.media = null;
     this.videoSources = [];
 
-    // 1. Essayer le catalogue démo embarqué (toujours disponible)
+    // Reuse the full metadata snapshot first, then the bundled fallback catalogue.
     try {
+      this.media = this.storage.getMedia(this.mediaId);
+      if (this.media) this.videoSources = this._extractVideoSources(this.media);
       const { getDemoAnime } = await import('../demo-data.js');
-      this.media = getDemoAnime(this.mediaId);
+      this.media ||= getDemoAnime(this.mediaId);
     } catch (e) {
       console.warn('Demo data indisponible', e);
     }
 
-    // 2. Si pas trouvé dans le démo, essayer AnimeDoc (si clé configurée)
-    if (!this.media && this.animedoc?.hasKey?.()) {
-      try {
-        const details = await this.animedoc.getDetails(this.mediaId);
-        this.media = this._normalizeAnimedocDetail(details);
-        try {
-          const sources = await this.animedoc.getMediaSources(this.mediaId);
-          this.videoSources = this._extractVideoSources(sources);
-        } catch (_) {}
-      } catch (e) {
-        console.warn('AnimeDoc détails indisponible', e);
-      }
-    }
-
-    // 3. Fallback AniList
+    // Fetch current metadata for any item not already available locally.
     if (!this.media) {
       try {
         this.media = await this.anilist.getMedia(this.mediaId);
-        if (!this.media) throw new Error('Aucun média');
       } catch (e) {
-        console.warn('AniList détail indisponible', e);
-        titleEl.textContent = 'Anime introuvable';
-        return;
+        console.warn('Fiche anime indisponible', e);
       }
     }
 
+    if (this.media && !this.videoSources.length) {
+      try {
+        const sources = await this.animedoc.getMediaSources(this.mediaId);
+        this.videoSources = this._extractVideoSources(sources);
+      } catch (e) {
+        console.info('Lecture non disponible pour cette fiche.');
+      }
+    }
+    if (!this.media) { titleEl.textContent = 'Anime introuvable'; return; }
+    this.storage.saveMedia(this.media);
+
     // Rendu des métadonnées
     titleEl.textContent = this.media.title;
-    poster.src = this.media.coverImage || 'https://placehold.co/300x450/png?text=No+Image';
+    if (this.media.bannerImage) {
+      this.element.style.setProperty('--detail-banner', `url("${this.media.bannerImage}")`);
+      this.element.classList.add('has-detail-banner');
+    }
+    poster.src = this.media.coverImage || this.media.coverImageMedium || this.ui.posterFallback(this.media.title, 620, 900);
+    poster.onerror = () => { poster.onerror = null; poster.src = this.ui.posterFallback(this.media.title, 620, 900); };
     poster.alt = `Affiche de ${this.media.title}`;
 
     const year = this.media.startDate ? this.media.startDate.slice(0, 4) : (this.media.year || '');
@@ -168,18 +170,24 @@ export class DetailPage {
       this.ui.toast(added ? 'Ajouté aux favoris' : 'Retiré des favoris');
     };
 
-    // Bouton regarder
+    // Playback is only enabled for an actual playable source.
     const hasVideo = this.videoSources.length > 0;
     watchBtn.disabled = !hasVideo;
-    watchBtn.style.opacity = hasVideo ? '1' : '0.6';
-    watchBtn.title = hasVideo ? 'Lancer la lecture' : 'Aucune source vidéo disponible';
+    watchBtn.title = hasVideo ? 'Lancer la lecture' : 'Lecture indisponible pour le moment';
     watchBtn.onclick = () => {
       if (hasVideo) {
-        this.router.navigate(`/lecteur?animeId=${this.mediaId}&title=${encodeURIComponent(this.media.title)}`);
-      } else {
-        // Même sans source vidéo connue, on ouvre le lecteur avec un flux de test
-        this.router.navigate(`/lecteur?animeId=${this.mediaId}&title=${encodeURIComponent(this.media.title)}`);
+        this.router.navigate(`/lecteur?animeId=${encodeURIComponent(this.mediaId)}&title=${encodeURIComponent(this.media.title)}&cover=${encodeURIComponent(this.media.coverImage || '')}`);
       }
+    };
+
+    const listSelect = this.element.querySelector('#detail-list-select');
+    const lists = this.storage.getLists();
+    listSelect.replaceChildren(...Object.keys(lists).map((name) => {
+      const option = document.createElement('option'); option.value = name; option.textContent = name; return option;
+    }));
+    this.element.querySelector('#detail-add-list').onclick = () => {
+      this.storage.addToList(listSelect.value, this.media);
+      this.ui.toast(`Ajouté à « ${listSelect.value} »`, 'success');
     };
 
     // Partager
@@ -264,8 +272,11 @@ export class DetailPage {
       const btn = document.createElement('button');
       btn.className = 'episode-btn';
       btn.textContent = `Ép. ${i}`;
+      btn.disabled = this.videoSources.length === 0;
+      btn.title = btn.disabled ? 'Lecture indisponible pour cet anime' : `Lire l'épisode ${i}`;
       btn.onclick = () => {
-        this.router.navigate(`/lecteur?animeId=${this.mediaId}&ep=${i}&title=${encodeURIComponent(this.media.title)}`);
+        if (!this.videoSources.length) return;
+        this.router.navigate(`/lecteur?animeId=${encodeURIComponent(this.mediaId)}&ep=${i}&title=${encodeURIComponent(this.media.title)}&cover=${encodeURIComponent(this.media.coverImage || '')}`);
       };
       frag.appendChild(btn);
     }
@@ -295,6 +306,8 @@ export class DetailPage {
           <div class="credit-role">${this.ui.escapeHtml(item.role || (type === 'staff' ? (item.primaryOccupations?.join(', ') || '') : ''))}</div>
         </div>
       `;
+      const creditImage = card.querySelector('img');
+      if (creditImage) creditImage.onerror = () => { creditImage.outerHTML = `<div class="credit-avatar">${this.ui.escapeHtml((item.name || '?').slice(0, 1))}</div>`; };
       container.appendChild(card);
     });
   }

@@ -13,6 +13,7 @@ export class SearchPage {
     this.timer = null;
     this.query = '';
     this.page = 1;
+    this.requestId = 0;
   }
 
   async render() {
@@ -42,30 +43,31 @@ export class SearchPage {
     const btn = this.element.querySelector('#search-btn');
 
     const hash = window.location.hash;
-    const hashMatch = hash.match(/[?&]q=([^&]+)/);
-    if (hashMatch) {
-      input.value = decodeURIComponent(hashMatch[1]);
-      this.query = decodeURIComponent(hashMatch[1]);
+    const query = new URLSearchParams(hash.split('?')[1] || '');
+    if (query.has('q')) {
+      input.value = query.get('q');
+      this.query = query.get('q');
       this.page = 1;
       await this.load();
     }
 
-    btn.onclick = () => this._doSearch(input.value);
+    btn.onclick = () => this._doSearch(input.value, true);
     input.addEventListener('input', (e) => {
       clearTimeout(this.timer);
-      this.timer = setTimeout(() => this._doSearch(e.target.value), 300);
+      this.timer = setTimeout(() => this._doSearch(e.target.value), 350);
     });
-    input.addEventListener('keypress', (e) => { if (e.key === 'Enter') this._doSearch(input.value); });
+    input.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); this._doSearch(input.value, true); } });
   }
 
-  _doSearch(q) {
+  _doSearch(q, navigate = false) {
     this.query = (q || '').trim();
     this.page = 1;
+    if (navigate) { this.router.navigate(`/recherche?q=${encodeURIComponent(this.query)}`); return; }
     this.load();
-    this.router.navigate(`/recherche?q=${encodeURIComponent(this.query)}`);
   }
 
   async load() {
+    const requestId = ++this.requestId;
     const container = this.element.querySelector('#search-results');
     const info = this.element.querySelector('#search-info');
     const pagination = this.element.querySelector('#search-pagination');
@@ -82,28 +84,30 @@ export class SearchPage {
 
     try {
       const data = await this._fetchSearch();
+      if (requestId !== this.requestId) return;
       container.innerHTML = '';
-      info.textContent = `Résultats pour "${this.ui.escapeHtml(this.query)}"`;
+      info.textContent = `Résultats pour "${this.query}"`;
       const results = data.results || [];
       if (results.length === 0) {
         container.appendChild(this.ui.renderEmpty(`Aucun anime trouvé pour "${this.query}".`));
         return;
       }
       results.forEach((m) => {
+        this.storage.saveMedia(m);
         const card = this.ui.renderCard(m, {
           clickable: true, showFav: true, isFavorite: this.storage.isFavorite(m.id),
         });
         card._onClick = (media) => this.router.navigate(this.router.routes.detail(media.id));
         card.querySelector('.anime-fav')._onToggle = (id) => {
           const added = this.storage.toggleFavorite(id);
-          const btn = card.querySelector('.anime-fav');
-          btn.textContent = added ? '★' : '☆';
           this.ui.toast(added ? 'Ajouté aux favoris' : 'Retiré des favoris');
+          return added;
         };
         container.appendChild(card);
       });
       this._renderPagination(pagination, data.pageInfo);
     } catch (e) {
+      if (requestId !== this.requestId) return;
       console.error(e);
       container.innerHTML = '';
       container.appendChild(this.ui.renderEmpty('Erreur de recherche.', 'error'));
@@ -112,8 +116,12 @@ export class SearchPage {
   }
 
   async _fetchSearch() {
-    const { searchDemoAnimes } = await import('../demo-data.js');
-    return searchDemoAnimes(this.query, { page: this.page, perPage: 20 });
+    try {
+      return await this.anilist.searchMedia({ search: this.query, page: this.page, perPage: 20, sort: 'SEARCH_MATCH' });
+    } catch (error) {
+      const { searchDemoAnimes } = await import('../demo-data.js');
+      return searchDemoAnimes(this.query, { page: this.page, perPage: 20 });
+    }
   }
 
   _renderPagination(container, pageInfo) {

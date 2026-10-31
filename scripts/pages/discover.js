@@ -10,6 +10,7 @@ export class DiscoverPage {
     this.ui = ui;
     this.storage = storage;
     this.element = null;
+    this.requestId = 0;
     this.filters = { sort: 'popular', genre: null, format: null, status: null, page: 1 };
   }
 
@@ -35,14 +36,14 @@ export class DiscoverPage {
           <select id="disc-genre">
             <option value="">Tous</option>
             <option value="Action">Action</option>
-            <option value="Aventure">Aventure</option>
-            <option value="Comédie">Comédie</option>
-            <option value="Drame">Drame</option>
+            <option value="Adventure">Aventure</option>
+            <option value="Comedy">Comédie</option>
+            <option value="Drama">Drame</option>
             <option value="Fantasy">Fantasy</option>
-            <option value="Science-Fiction">Science-Fiction</option>
+            <option value="Sci-Fi">Science-fiction</option>
             <option value="Romance">Romance</option>
-            <option value="Mystère">Mystère</option>
-            <option value="Horreur">Horreur</option>
+            <option value="Mystery">Mystère</option>
+            <option value="Horror">Horreur</option>
             <option value="Thriller">Thriller</option>
           </select>
         </div>
@@ -57,6 +58,7 @@ export class DiscoverPage {
           </select>
         </div>
         <button id="disc-refresh" class="btn btn-primary">Actualiser</button>
+        <button id="disc-view" class="btn btn-outline" type="button" aria-pressed="false">Vue compacte</button>
       </div>
 
       <div id="disc-info" class="disc-info" aria-live="polite"></div>
@@ -71,7 +73,20 @@ export class DiscoverPage {
     const query = new URLSearchParams(window.location.hash.split('?')[1] || '');
     if (query.get('sort') === 'score') this.filters.sort = 'score';
     if (query.has('genre')) this.filters.genre = query.get('genre');
+    if (query.has('format')) this.filters.format = query.get('format');
     this._bindFilters();
+    const results = this.element.querySelector('#disc-results');
+    const viewButton = this.element.querySelector('#disc-view');
+    const compact = this.storage.getItem('tsuki_catalog_layout') === 'list';
+    results.classList.toggle('list-layout', compact);
+    viewButton.setAttribute('aria-pressed', String(compact));
+    viewButton.textContent = compact ? 'Vue affiches' : 'Vue compacte';
+    viewButton.onclick = () => {
+      const list = results.classList.toggle('list-layout');
+      this.storage.setItem('tsuki_catalog_layout', list ? 'list' : 'grid');
+      viewButton.setAttribute('aria-pressed', String(list));
+      viewButton.textContent = list ? 'Vue affiches' : 'Vue compacte';
+    };
     await this.load();
   }
 
@@ -88,6 +103,7 @@ export class DiscoverPage {
   }
 
   async load() {
+    const requestId = ++this.requestId;
     const container = this.element.querySelector('#disc-results');
     const info = this.element.querySelector('#disc-info');
     const pagination = this.element.querySelector('#disc-pagination');
@@ -98,6 +114,7 @@ export class DiscoverPage {
 
     try {
       const data = await this._fetchAnimes();
+      if (requestId !== this.requestId) return;
       container.innerHTML = '';
       const results = data.results || [];
       if (results.length === 0) {
@@ -108,6 +125,7 @@ export class DiscoverPage {
       info.textContent = `${results.length} résultat(s) sur ${data.pageInfo.total || 0}`;
 
       results.forEach((m) => {
+        this.storage.saveMedia(m);
         const card = this.ui.renderCard(m, {
           clickable: true,
           showFav: true,
@@ -116,14 +134,14 @@ export class DiscoverPage {
         card._onClick = (media) => this.router.navigate(this.router.routes.detail(media.id));
         card.querySelector('.anime-fav')._onToggle = (id) => {
           const added = this.storage.toggleFavorite(id);
-          const btn = card.querySelector('.anime-fav');
-          btn.textContent = added ? '★' : '☆';
           this.ui.toast(added ? 'Ajouté aux favoris' : 'Retiré des favoris');
+          return added;
         };
         container.appendChild(card);
       });
       this._renderPagination(pagination, data.pageInfo);
     } catch (e) {
+      if (requestId !== this.requestId) return;
       console.error(e);
       container.innerHTML = '';
       container.appendChild(this.ui.renderEmpty('Erreur de chargement.', 'error'));
@@ -132,14 +150,26 @@ export class DiscoverPage {
   }
 
   async _fetchAnimes() {
-    const { getDemoAnimes } = await import('../demo-data.js');
-    return getDemoAnimes({
-      page: this.filters.page,
-      perPage: 20,
-      genre: this.filters.genre,
-      format: this.filters.format,
-      sort: this.filters.sort,
-    });
+    try {
+      return await this.anilist.searchMedia({
+        page: this.filters.page,
+        perPage: 20,
+        genre: this.filters.genre,
+        format: this.filters.format,
+        sort: this.filters.sort === 'score' ? 'SCORE_DESC' : 'POPULARITY_DESC',
+      });
+    } catch (error) {
+      const { getDemoAnimes } = await import('../demo-data.js');
+      const localGenres = {
+        Adventure: 'Aventure', Comedy: 'Comédie', Drama: 'Drame',
+        'Sci-Fi': 'Science-Fiction', Mystery: 'Mystère', Horror: 'Horreur',
+      };
+      return getDemoAnimes({
+        ...this.filters,
+        genre: localGenres[this.filters.genre] || this.filters.genre,
+        perPage: 20,
+      });
+    }
   }
 
   _renderPagination(container, pageInfo) {

@@ -50,6 +50,17 @@ export class AniListAPI {
   // --- Normalisation d'un média AniList vers le format interne Tsuki ---
   _normalizeMedia(m) {
     if (!m) return null;
+    const plainText = (value) => String(value || '')
+      .replace(/<br\s*\/?\s*>/gi, '\n\n')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/\s+\n/g, '\n')
+      .trim();
+    const characterRows = m.characters?.edges || m.characters?.nodes || [];
+    const staffRows = m.staff?.edges || m.staff?.nodes || [];
     return {
       id: String(m.id),
       idMal: m.idMal || null,
@@ -57,7 +68,7 @@ export class AniListAPI {
       titleRomaji: m.title?.romaji || null,
       titleEnglish: m.title?.english || null,
       titleNative: m.title?.native || null,
-      description: m.description || null,
+      description: plainText(m.description) || null,
       format: m.format || null, // TV, MOVIE, OVA, ONA, SPECIAL, MUSIC
       status: m.status || null, // FINISHED, RELEASING, NOT_YET_RELEASED, CANCELLED, HIATUS
       episodes: m.episodes || null,
@@ -70,24 +81,29 @@ export class AniListAPI {
       trailer: m.trailer ? { id: m.trailer.id, site: m.trailer.site } : null,
       genres: m.genres || [],
       studios: (m.studios?.nodes || []).map((s) => s.name),
-      characters: (m.characters?.nodes || []).map((c) => ({
+      characters: characterRows.map((edge) => {
+        const c = edge.node || edge;
+        return {
         id: String(c.id),
         name: c.name?.full || c.name?.first || 'Personnage',
         image: c.image?.large || null,
-        role: c.role || null,
-      })),
-      staff: (m.staff?.nodes || []).map((s) => ({
+        role: edge.role || c.role || null,
+      }; }),
+      staff: staffRows.map((edge) => {
+        const s = edge.node || edge;
+        return {
         id: String(s.id),
         name: s.name?.full || 'Staff',
-        role: s.role || null,
+        role: edge.role || s.role || null,
         image: s.image?.large || null,
-      })),
+      }; }),
       startDate: m.startDate ? `${m.startDate.year || ''}-${String(m.startDate.month || 1).padStart(2,'0')}-${String(m.startDate.day || 1).padStart(2,'0')}` : null,
       endDate: m.endDate ? `${m.endDate.year || ''}-${String(m.endDate.month || 1).padStart(2,'0')}-${String(m.endDate.day || 1).padStart(2,'0')}` : null,
       season: m.season || null,
       seasonYear: m.seasonYear || null,
       synonyms: m.synonyms || [],
       isAdult: m.isAdult || false,
+      externalLinks: m.externalLinks || [],
       source: 'anilist',
     };
   }
@@ -119,13 +135,12 @@ export class AniListAPI {
             seasonYear: $seasonYear
           ) {
             id idMal title { romaji english native userPreferred }
-            description(format: TEXT)
+            description(asHtml: false)
             format status episodes duration averageScore popularity
             coverImage { large medium }
             bannerImage
             trailer { id site }
             genres studios { nodes { name } }
-            characters { nodes { id name { full } image { large } role } }
             startDate { year month day } endDate { year month day }
             season seasonYear synonyms isAdult
           }
@@ -155,14 +170,14 @@ export class AniListAPI {
       query ($id: Int) {
         Media(id: $id, type: ANIME) {
           id idMal title { romaji english native userPreferred }
-          description(format: TEXT) format status episodes duration
+          description(asHtml: false) format status episodes duration
           averageScore popularity
           coverImage { large medium extraLarge }
           bannerImage
           trailer { id site }
           genres studios { nodes { name } }
-          characters { nodes { id name { full } image { large } role } }
-          staff { nodes { id name { full } image { large } role primaryOccupations } }
+          characters { edges { role node { id name { full } image { large } } } }
+          staff { edges { role node { id name { full } image { large } primaryOccupations } } }
           startDate { year month day } endDate { year month day }
           season seasonYear synonyms isAdult
           relations { edges { node { id title { romaji english } type } relationType } }

@@ -17,14 +17,19 @@ jobs:
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      - name: Installer Wrangler (CLI Cloudflare)
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Vérifier la configuration de lecture
+        run: test -n "$ANIMEDOC_API_KEY"
+        env:
+          ANIMEDOC_API_KEY: ${{ secrets.ANIMEDOC_API_KEY }}
 
       - name: Déployer sur Workers
-        run: wrangler deploy --minify
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --minify
+          secrets: |
+            ANIMEDOC_API_KEY
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ANIMEDOC_API_KEY: ${{ secrets.ANIMEDOC_API_KEY }}
 

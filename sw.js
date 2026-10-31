@@ -1,7 +1,7 @@
 /* ==========================================================================
    Tsuki — Service Worker (PWA hors-ligne)
    ========================================================================== */
-const CACHE_NAME = 'tsuki-v3';
+const CACHE_NAME = 'sakura-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -24,15 +24,18 @@ const ASSETS = [
   './scripts/pages/player.js',
   './scripts/pages/favorites.js',
   './scripts/pages/settings.js',
+  './scripts/pages/lists.js',
+  './scripts/pages/history.js',
   './manifest.json',
   './icon-192.svg',
   './icon-512.svg',
-  'https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js',
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS).catch(() => {}))
+    caches.open(CACHE_NAME).then((cache) => Promise.all(
+      ASSETS.map((asset) => cache.add(asset).catch(() => undefined))
+    ))
   );
   self.skipWaiting();
 });

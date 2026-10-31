@@ -22,6 +22,12 @@ export class UI {
     return tpl.content.firstElementChild;
   }
 
+  posterFallback(title = 'Anime', width = 440, height = 640) {
+    const safeTitle = this.escapeHtml(title).slice(0, 70);
+    const artwork = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#56364f"/><stop offset="1" stop-color="#18121d"/></linearGradient><radialGradient id="r"><stop stop-color="#d986aa" stop-opacity=".42"/><stop offset="1" stop-color="#d986aa" stop-opacity="0"/></radialGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="${width * .75}" cy="${height * .23}" r="${width * .55}" fill="url(#r)"/><text x="8%" y="83%" fill="#fff0f7" font-family="sans-serif" font-size="${Math.round(width * .062)}" font-weight="700">${safeTitle}</text><text x="9%" y="91%" fill="#e9a4c2" font-family="sans-serif" font-size="${Math.round(width * .03)}" letter-spacing="5">SAKURA LIBRARY</text></svg>`;
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(artwork)}`;
+  }
+
   // --- Toast ---
   toast(message, type = 'info', duration = 3000) {
     const t = this.elements.toast;
@@ -69,21 +75,22 @@ export class UI {
   // --- Carte d'anime (reusable sur plusieurs pages) ---
   renderCard(media, { clickable = true, showFav = true, isFavorite = false } = {}) {
     const card = document.createElement('article');
+    card.style.setProperty('--card-index', document.querySelectorAll('.card').length % 12);
     card.className = 'card';
     card.tabIndex = 0;
     card.setAttribute('role', 'gridcell');
-    card.setAttribute('aria-label', this.escapeHtml(media.title));
+    card.setAttribute('aria-label', media.title || 'Anime');
 
     const score = media.averageScore ? `<span class="badge badge--score">${media.averageScore}/100</span>` : '';
     const year = media.startDate ? media.startDate.slice(0, 4) : '';
     const format = media.format || '';
-    const image = media.coverImage || 'https://placehold.co/220x320/png?text=No+Image';
+    const image = media.coverImage || media.coverImageMedium || '';
 
     card.innerHTML = `
       <div class="card-media" style="position:relative;">
         <img src="${this.escapeHtml(image)}" alt="Affiche de ${this.escapeHtml(media.title)}"
              loading="lazy" width="220" height="320"
-             onerror="this.src='https://placehold.co/220x320/png?text=No+Image'">
+             >
         ${score}${year ? `<span class="badge badge--year">${year}</span>` : ''}
       </div>
       <div class="card-info">
@@ -98,6 +105,14 @@ export class UI {
       ` : ''}
     `;
 
+    const poster = card.querySelector('img');
+    const useFallback = () => {
+      poster.onerror = null;
+      poster.src = this.posterFallback(media.title || 'Anime');
+    };
+    poster.addEventListener('error', useFallback, { once: true });
+    if (!image) useFallback();
+
     if (clickable) {
       card.onclick = () => {
         // Navigation via router externe (appelée depuis la page)
@@ -110,7 +125,13 @@ export class UI {
     if (favBtn) {
       favBtn.onclick = (e) => {
         e.stopPropagation();
-        if (favBtn._onToggle) favBtn._onToggle(media.id);
+        if (favBtn._onToggle) {
+          const added = favBtn._onToggle(media.id);
+          if (typeof added === 'boolean') {
+            favBtn.textContent = added ? '★' : '☆';
+            favBtn.setAttribute('aria-label', added ? 'Retirer des favoris' : 'Ajouter aux favoris');
+          }
+        }
       };
     }
 

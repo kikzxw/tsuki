@@ -8,6 +8,7 @@ export class Router {
     this.outlet = outlet;
     this.onRouteChange = onRouteChange;
     this.dependencies = dependencies;
+    this.activePage = null;
     this.routes = new Map();
     this.currentPath = '/';
     this._initListeners();
@@ -94,6 +95,11 @@ export class Router {
   }
 
   async _render(resolved) {
+    this.activePage?.destroy?.();
+    const routePath = this.currentPath.split('?')[0];
+    document.querySelectorAll('[data-nav]').forEach((link) => {
+      link.classList.toggle('active', link.dataset.nav === routePath);
+    });
     if (this.outlet) this.outlet.innerHTML = '';
     const { component, params } = resolved;
 
@@ -104,6 +110,7 @@ export class Router {
     try {
       const Page = component;
       const pageInstance = new Page({ ...this.dependencies, router: this, params });
+      this.activePage = pageInstance;
       const el = await pageInstance.render();
       if (this.outlet) {
         this.outlet.innerHTML = '';

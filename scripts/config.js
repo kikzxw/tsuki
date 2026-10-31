@@ -4,8 +4,8 @@
 
 export const config = {
   // Nom du site
-  siteName: 'Tsuki',
-  siteTagline: 'Streaming d\'animes complet',
+  siteName: 'Sakura',
+  siteTagline: 'Anime Library',
 
   // --- API METADONNEES ---
   // AniList (GraphQL, gratuit, sans cle, CORS ouvert) — moteur principal anime

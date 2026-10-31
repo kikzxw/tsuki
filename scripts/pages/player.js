@@ -55,8 +55,10 @@ export class PlayerPage {
     const animeId = params.get('animeId');
     const ep = params.get('ep');
     const title = params.get('title') || 'Lecteur';
+    const coverImage = params.get('cover') || '';
 
-    this.currentEpisode = ep ? parseInt(ep, 10) : 1;
+    this.currentEpisode = Math.max(1, Number.parseInt(ep, 10) || 1);
+    this.currentAnime = this.storage?.getMedia(animeId) || { id: animeId, title, coverImage };
     this.element.querySelector('#player-title').textContent = title;
 
     const wrapper = this.element.querySelector('#player-wrapper');
@@ -64,6 +66,7 @@ export class PlayerPage {
     const sourcesEl = this.element.querySelector('#player-sources');
     const episodesEl = this.element.querySelector('#player-episodes');
     const video = this.element.querySelector('#videoPlayer');
+    video.poster = coverImage;
 
     if (!animeId) {
       info.innerHTML = `<p class="empty">Aucun anime spécifié.</p>`;
@@ -72,26 +75,21 @@ export class PlayerPage {
 
     // Charger les sources depuis AnimeDoc si clé configurée
     try {
-      if (this.animedoc?.hasKey?.()) {
-        const sourcesData = await this.animedoc.getMediaSources(animeId);
-        this.currentSources = this._extractSources(sourcesData);
-      }
+      const sourcesData = await this.animedoc.getMediaSources(animeId);
+      this.currentSources = this._extractSources(sourcesData);
     } catch (e) {
       console.warn('Impossible de charger les sources AnimeDoc', e);
     }
 
-    // Si aucune source, utiliser un flux HLS de test public (toujours disponible)
     if (this.currentSources.length === 0) {
-      this.currentSources = [{
-        url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-        quality: 'Test (720p)',
-        type: 'application/vnd.apple.mpegurl',
-        isM3U8: true,
-      }];
-      info.innerHTML = '<p class="empty">Mode démo : flux de test public.</p>';
+      info.innerHTML = '<div class="empty-state compact-empty"><span>◌</span><h2>Aucun lecteur disponible</h2><p>La fiche reste dans ton historique. Réessaie plus tard ou choisis un autre anime.</p><a class="btn btn-outline" href="#/anime/' + encodeURIComponent(animeId) + '">Revenir à la fiche</a></div>';
+      this.storage?.addHistory({ ...this.currentAnime, id: animeId, title, coverImage, episode: this.currentEpisode });
+      video.remove();
+      return;
     } else {
       info.innerHTML = `<p>${this.currentSources.length} source(s) disponible(s)</p>`;
     }
+    this.storage?.addHistory({ ...this.currentAnime, id: animeId, title, coverImage, episode: this.currentEpisode });
 
     // Sélecteur de qualité
     sourcesEl.innerHTML = '';
@@ -121,6 +119,7 @@ export class PlayerPage {
     const out = [];
     const d = data?.data || data || {};
     const list = d.sources || d.mediaSources || d.urls || [];
+    if (!Array.isArray(list)) return out;
     list.forEach((s) => {
       if (s.url) {
         out.push({
@@ -175,7 +174,7 @@ export class PlayerPage {
       btn.textContent = `Ép. ${i}`;
       btn.onclick = () => {
         this.currentEpisode = i;
-        this.router.navigate(`/lecteur?animeId=${animeId}&ep=${i}`);
+        this.router.navigate(`/lecteur?animeId=${encodeURIComponent(animeId)}&ep=${i}&title=${encodeURIComponent(this.currentAnime.title || 'Lecteur')}&cover=${encodeURIComponent(this.currentAnime.coverImage || '')}`);
       };
       frag.appendChild(btn);
     }

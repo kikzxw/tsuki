@@ -13,5 +13,8 @@ directory = "."
 
 # Variables d'environnement
 [vars]
-SITE_NAME = "Tsuki"
+SITE_NAME = "Sakura"
 SITE_URL = "https://tsuki.kikzxw.workers.dev"
+
+[secrets]
+required = ["ANIMEDOC_API_KEY"]

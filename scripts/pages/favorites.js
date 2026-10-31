@@ -52,7 +52,7 @@ export class FavoritesPage {
     const { getDemoAnime } = await import('../demo-data.js');
     for (const id of ids) {
       try {
-        const media = getDemoAnime(id) || await this.anilist.getMedia(id);
+        const media = this.storage.getMedia(id) || getDemoAnime(id) || await this.anilist.getMedia(id);
         if (!media) continue;
         loaded.push(media);
       } catch (e) {
@@ -67,6 +67,7 @@ export class FavoritesPage {
     }
 
     loaded.forEach((media) => {
+      this.storage.saveMedia(media);
       const card = this.ui.renderCard(media, {
         clickable: true,
         showFav: true,
@@ -77,6 +78,7 @@ export class FavoritesPage {
         this.storage.toggleFavorite(fid);
         this.load();
         this.ui.toast('Retiré des favoris');
+        return false;
       };
       container.appendChild(card);
     });

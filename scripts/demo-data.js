@@ -58,8 +58,11 @@ export const DEMO_ANIMES = [
 
 export const DEMO_GENRES = ['Action', 'Aventure', 'Comédie', 'Drame', 'Fantasy', 'Science-Fiction', 'Romance', 'Mystère', 'Horreur', 'Thriller', 'Surnaturel', 'École', 'Famille', 'Tranche de vie', 'Arts martiaux', 'Mécas', 'Police'];
 
+DEMO_ANIMES.forEach((anime) => { anime.id = `demo-${anime.id}`; });
+
 export function getDemoAnime(id) {
-  return DEMO_ANIMES.find((a) => a.id === String(id)) || null;
+  const key = String(id);
+  return DEMO_ANIMES.find((a) => a.id === key || a.id === `demo-${key}`) || null;
 }
 
 export function getDemoAnimes({ page = 1, perPage = 20, genre = null, format = null, sort = 'popular', search = '' } = {}) {

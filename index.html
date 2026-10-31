@@ -3,17 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <meta name="description" content="Tsuki — Streaming d'animes complet. Découvrez, recherchez et regardez des milliers d'animes avec toutes les métadonnées (notes, synopsis, casting, épisodes) via AnimeDoc et AniList.">
-    <meta name="theme-color" content="#0b0c10">
+    <meta name="description" content="Sakura — votre bibliothèque d'anime personnelle. Découvrez, classez et retrouvez vos séries préférées.">
+    <meta name="theme-color" content="#100b12">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="icon" type="image/svg+xml" href="/icon-192.svg">
     <link rel="apple-touch-icon" href="/icon-192.svg">
     <link rel="manifest" href="/manifest.json">
-    <title>Tsuki | Anime Stream</title>
+    <title>SAKURA — Anime Library</title>
     <link rel="stylesheet" href="styles/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- hls.js épinglé pour la lecture HLS (.m3u8) -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
 </head>
 <body>
     <!-- Lien d'évitement clavier -->
@@ -22,26 +25,30 @@
     <!-- Navigation principale -->
     <header class="shell-header">
         <div class="header-inner">
-            <a href="#/" class="logo" aria-label="Accueil Tsuki">
-                <svg class="logo-mark" viewBox="0 0 32 32" aria-hidden="true">
-                    <path d="M16 2C8.3 2 2 8.3 2 16s6.3 14 14 14 14-6.3 14-14S23.7 2 16 2zm0 26C9.4 28 4 22.6 4 16S9.4 4 16 4s12 5.4 12 12-5.4 12-12 12z" fill="#e50914"/>
-                    <path d="M10 12l2 4 4-2" fill="#fff" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span class="logo-text">Tsuki<span class="logo-dot">.</span><span class="logo-sub">Stream</span></span>
+            <a href="#/" class="logo" aria-label="Accueil Sakura">
+                <span class="logo-mark" aria-hidden="true">TSK</span>
+                <span class="logo-text">SAKURA<span class="logo-sub">ANIME LIBRARY</span></span>
             </a>
 
             <form class="shell-search" role="search" aria-label="Recherche rapide">
-                <input type="search" id="shellSearchInput" placeholder="Rechercher un anime, un film…" autocomplete="off" results="0" spellcheck="false">
-                <button type="submit" aria-label="Lancer la recherche">🔍</button>
+                <span class="search-symbol" aria-hidden="true">⌕</span>
+                <input type="search" id="shellSearchInput" placeholder="Un titre, une saison, une humeur…" autocomplete="off" results="0" spellcheck="false">
+                <kbd>↵</kbd>
             </form>
 
             <div class="header-actions">
-                <button id="themeToggle" type="button" class="icon-btn" aria-label="Changer de thème">🌓</button>
-                <a href="#/favoris" class="icon-btn fav-btn" aria-label="Favoris" aria-expanded="false">⭐<span id="shellFavCount" class="visually-hidden">0 favoris</span></a>
-                <a href="#/parametres" class="icon-btn" aria-label="Paramètres">⚙️</a>
-                <button id="userBtn" type="button" class="icon-btn" aria-label="Compte">👤</button>
+                <a href="#/historique" class="icon-btn" aria-label="Historique">◷</a>
+                <a href="#/favoris" class="icon-btn fav-btn" aria-label="Favoris" aria-expanded="false">♡<span id="shellFavCount" class="visually-hidden">0 favoris</span></a>
+                <button id="themeToggle" type="button" class="icon-btn" aria-label="Changer de thème">☼</button>
             </div>
         </div>
+        <nav class="primary-nav" aria-label="Navigation principale">
+            <a href="#/" data-nav="/">Découvrir</a>
+            <a href="#/decouvrir" data-nav="/decouvrir">Catalogue</a>
+            <a href="#/listes" data-nav="/listes">Mes listes</a>
+            <a href="#/historique" data-nav="/historique">Récemment vus</a>
+            <a href="#/favoris" data-nav="/favoris">Favoris <span class="nav-count" id="navFavCount">0</span></a>
+        </nav>
     </header>
 
     <main id="main" tabindex="-1" class="shell-main">
@@ -51,7 +58,7 @@
 
     <footer class="shell-footer">
         <div class="footer-inner">
-            <p>Tsuki — <a href="#/a-propos">À propos</a> · <a href="#/confidentialite">Confidentialité</a> · <a href="#/conditions">Conditions</a></p>
+            <p>Sakura Library — <a href="#/a-propos">À propos</a> · <a href="#/confidentialite">Confidentialité</a> · <a href="#/conditions">Conditions</a> · <a href="#/parametres">Préférences</a></p>
             <p id="footerYear"></p>
         </div>
     </footer>
@@ -82,6 +89,8 @@
         import { PlayerPage } from './scripts/pages/player.js';
         import { FavoritesPage } from './scripts/pages/favorites.js';
         import { SettingsPage } from './scripts/pages/settings.js';
+        import { ListsPage } from './scripts/pages/lists.js';
+        import { HistoryPage } from './scripts/pages/history.js';
         import { App } from './scripts/app.js';
 
         window.addEventListener('DOMContentLoaded', async () => {
@@ -90,10 +99,6 @@
             const anilist = new AniListAPI({ cache });
             const frembed = new FrembedAPI({ cache });
             const animedoc = new AnimeDocAPI({ cache });
-
-            // Restaurer la clé API AnimeDoc depuis localStorage
-            const savedKey = localStorage.getItem('tsuki_animedoc_key') || '';
-            if (savedKey) animedoc.setApiKey(savedKey);
 
             const ui = new UI();
             const router = new Router({
@@ -109,6 +114,8 @@
             router.register('/anime/:id', DetailPage);
             router.register('/lecteur', PlayerPage);
             router.register('/favoris', FavoritesPage);
+            router.register('/listes', ListsPage);
+            router.register('/historique', HistoryPage);
             router.register('/parametres', SettingsPage);
             router.register('/a-propos', AboutPage);
             router.register('/confidentialite', PrivacyPage);
@@ -141,23 +148,25 @@
         });
 
         // Pages statiques simples
-        function AboutPage({ ui }) {
-            return ui.renderStatic('À propos', `
-                <p><strong>Tsuki</strong> est une plateforme de streaming d'animes démonstrative.</p>
-                <p>Elle utilise <strong>AnimeDoc</strong> (métadonnées + liens de lecture) et <strong>AniList</strong> comme fallback.</p>
-                <p>Configurez votre clé API AnimeDoc dans <a href="#/parametres">Paramètres</a>.</p>
-            `);
+        class AboutPage {
+            constructor({ ui }) { this.ui = ui; }
+            render() { return this.ui.renderStatic('À propos', `
+                <p><strong>Sakura</strong> est une bibliothèque personnelle pour découvrir de nouvelles séries, garder ses coups de cœur et reprendre son visionnage.</p>
+                <p>Les listes, favoris et l'historique sont conservés sur cet appareil. Aucune création de compte n'est nécessaire.</p>
+            `); }
         }
-        function PrivacyPage({ ui }) {
-            return ui.renderStatic('Confidentialité', `
-                <p>Aucune donnée personnelle n'est collectée. Les favoris, le thème et la clé API sont stockés localement dans votre navigateur (localStorage).</p>
-                <p>Les appels API sont effectués directement vers AnimeDoc, AniList et Frembed depuis votre navigateur.</p>
-            `);
+        class PrivacyPage {
+            constructor({ ui }) { this.ui = ui; }
+            render() { return this.ui.renderStatic('Confidentialité', `
+                <p>Aucune donnée personnelle n'est collectée. Tes favoris, listes, préférences et ton historique restent dans le stockage local de ton navigateur.</p>
+                <p>Les fiches et affiches sont chargées depuis des services de catalogue externes.</p>
+            `); }
         }
-        function TermsPage({ ui }) {
-            return ui.renderStatic('Conditions', `
-                <p>Site à des fins éducatives et de démonstration. Les liens de lecture dépendent des hébergeurs tiers via AnimeDoc et Frembed.</p>
-            `);
+        class TermsPage {
+            constructor({ ui }) { this.ui = ui; }
+            render() { return this.ui.renderStatic('Conditions', `
+                <p>Les informations de catalogue et la disponibilité de la lecture dépendent de services externes.</p>
+            `); }
         }
     </script>
 </body>
