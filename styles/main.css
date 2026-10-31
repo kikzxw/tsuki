@@ -674,6 +674,20 @@ input, select, textarea { font: inherit; }
 }
 .episodes-panel-header h3 { font: 700 1.1rem 'Space Grotesk', sans-serif; }
 .jump-mini-form { display: flex; gap: 0.3rem; align-items: center; }
+
+/* Sélecteur de saison */
+.season-selector-wrap {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
+  padding: 0.55rem 0.8rem; background: var(--surface); border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.season-label { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); }
+.season-select {
+  flex: 1; padding: 0.35rem 0.65rem; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--card); color: var(--text);
+  font-size: 0.82rem; font-weight: 700; cursor: pointer;
+}
+.season-select:focus { outline: none; border-color: var(--accent); }
 .episodes-grid.player-grid {
   grid-template-columns: repeat(auto-fill, minmax(65px, 1fr));
   gap: 0.5rem;

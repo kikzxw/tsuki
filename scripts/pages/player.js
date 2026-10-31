@@ -1,6 +1,7 @@
 /* ==========================================================================
    Tsuki — Lecteur Vidéo Multi-Serveurs & Sélecteur d'Épisodes Fluide
-   Supporte Frembed (VF/VOSTFR), VidSrc, HLS et Bandes-annonces
+   Supporte Frembed (VF/VOSTFR), VidSrc, MultiEmbed, 2Embed et Bandes-annonces
+   AUCUN lecteur test / flux factice : uniquement de vrais lecteurs streaming.
    ========================================================================== */
 
 import { StreamingEngine } from '../api/streaming.js';
@@ -38,6 +39,12 @@ export class PlayerPage {
         <div class="player-header-top">
           <button class="btn btn-back" id="player-back">← Retour à la fiche</button>
           <div class="player-top-actions">
+            <button id="player-reload-btn" class="icon-btn-text" title="Recharger le lecteur">
+              🔄 Recharger
+            </button>
+            <button id="player-external-btn" class="icon-btn-text" title="Ouvrir le flux en plein écran externe">
+              ↗ Nouvel onglet
+            </button>
             <button id="player-cinema-btn" class="icon-btn-text" title="Mode Cinéma (tamiser la lumière)">
               💡 Mode Cinéma
             </button>
@@ -58,7 +65,7 @@ export class PlayerPage {
           <div class="player-wrapper" id="player-wrapper">
             <div class="player-loading-spinner" id="player-spinner">
               <div class="spinner"></div>
-              <span>Chargement du flux vidéo…</span>
+              <span>Connexion au flux vidéo sécurisé…</span>
             </div>
           </div>
 
@@ -69,28 +76,42 @@ export class PlayerPage {
               <button id="btn-next-ep" class="btn btn-primary btn-sm">Ép. Suivant ⏭</button>
             </div>
 
-            <!-- Sélecteur de Serveurs -->
+            <!-- Sélecteur de Serveurs Ordonnés par Préférence -->
             <div class="player-servers-container">
               <span class="servers-label">Serveur :</span>
               <div id="player-servers-list" class="server-chips"></div>
             </div>
           </div>
 
-          <!-- Note informative -->
+          <!-- Description et conseil du serveur actif -->
           <div class="player-notice" id="player-notice">
-            <span>ℹ️</span>
-            <p>Le <strong>Serveur 1 (Frembed)</strong> inclut le choix <strong>VF / VOSTFR</strong> directement dans les contrôles du lecteur. En cas de lenteur, change simplement de serveur.</p>
+            <span class="notice-icon">ℹ️</span>
+            <div id="player-notice-text">
+              <strong>Serveur 1 (Frembed)</strong> : Lecteur recommandé pour la France avec choix <strong>VF / VOSTFR</strong>. En cas de blocage ou lenteur, changez de serveur via les puces ci-dessus.
+            </div>
           </div>
         </div>
 
-        <!-- Volet de Sélection des Épisodes -->
+        <!-- Volet Latéral de Sélection des Épisodes & Saisons -->
         <div class="player-episodes-panel">
           <div class="episodes-panel-header">
-            <h3>Liste des Épisodes</h3>
+            <h3>Épisodes & Saisons</h3>
             <div class="jump-mini-form">
               <input type="number" id="player-jump-input" min="1" placeholder="N°" class="jump-input">
               <button id="player-jump-btn" class="btn btn-outline btn-sm">Aller</button>
             </div>
+          </div>
+
+          <!-- Sélecteur de Saison pour les séries -->
+          <div class="season-selector-wrap" id="season-selector-wrap">
+            <label for="player-season-select" class="season-label">Saison :</label>
+            <select id="player-season-select" class="season-select">
+              <option value="1">Saison 1</option>
+              <option value="2">Saison 2</option>
+              <option value="3">Saison 3</option>
+              <option value="4">Saison 4</option>
+              <option value="5">Saison 5</option>
+            </select>
           </div>
 
           <div id="player-ranges-tabs" class="episode-ranges-tabs"></div>
@@ -119,7 +140,7 @@ export class PlayerPage {
       return;
     }
 
-    // Récupérer la fiche anime (mémoire locale ou stockage)
+    // Récupérer la fiche anime
     this.currentAnime = this.storage?.getMedia(this.animeId) || {
       id: this.animeId,
       title,
@@ -168,6 +189,38 @@ export class PlayerPage {
       }
     };
 
+    // Recharger
+    const reloadBtn = this.element.querySelector('#player-reload-btn');
+    reloadBtn.onclick = () => {
+      const src = this.sources[this.selectedSourceIndex];
+      if (src) {
+        this.ui.toast(`Rechargement du ${src.name}…`, 'info');
+        this._playSource(src);
+      }
+    };
+
+    // Nouvel onglet externe
+    const extBtn = this.element.querySelector('#player-external-btn');
+    extBtn.onclick = () => {
+      const src = this.sources[this.selectedSourceIndex];
+      if (src?.url) {
+        window.open(src.url, '_blank', 'noopener,noreferrer');
+      }
+    };
+
+    // Sélecteur de saison
+    const seasonSelect = this.element.querySelector('#player-season-select');
+    const seasonWrap = this.element.querySelector('#season-selector-wrap');
+    if (this.currentAnime.format === 'MOVIE') {
+      seasonWrap.style.display = 'none';
+    } else {
+      seasonSelect.value = String(this.currentSeason);
+      seasonSelect.onchange = () => {
+        this.currentSeason = parseInt(seasonSelect.value, 10) || 1;
+        this.switchEpisode(1);
+      };
+    }
+
     // Précédent / Suivant
     const prevBtn = this.element.querySelector('#btn-prev-ep');
     const nextBtn = this.element.querySelector('#btn-next-ep');
@@ -206,10 +259,10 @@ export class PlayerPage {
 
     const titleText = this.currentAnime.title || 'Tsuki Player';
     titleEl.textContent = titleText;
-    document.title = `${titleText} — Épisode ${this.currentEpisode} | Tsuki`;
+    document.title = `${titleText} — S${this.currentSeason} E${this.currentEpisode} | Tsuki`;
 
     const isMovie = this.currentAnime.format === 'MOVIE';
-    badgeEl.textContent = isMovie ? 'Film Complet' : `Épisode ${this.currentEpisode}`;
+    badgeEl.textContent = isMovie ? 'Film Complet' : `Saison ${this.currentSeason} · Épisode ${this.currentEpisode}`;
 
     prevBtn.disabled = this.currentEpisode <= 1;
     const total = this.currentAnime.episodes || this.maxDisplayEpisodes;
@@ -221,14 +274,25 @@ export class PlayerPage {
       ...this.currentAnime,
       id: this.animeId,
       episode: this.currentEpisode,
+      season: this.currentSeason,
       watchedAt: Date.now(),
     });
 
-    // Génère les sources
+    // Génère les vraies sources réelles ordonnées par préférence
     this.sources = await this.streaming.getSourcesForEpisode(this.currentAnime, {
       season: this.currentSeason,
       episode: this.currentEpisode,
     });
+
+    // Mémorisation du serveur préféré de l'utilisateur
+    const savedServerId = this.storage.getItem('tsuki_preferred_server');
+    if (savedServerId) {
+      const idx = this.sources.findIndex((s) => s.id === savedServerId);
+      if (idx !== -1) this.selectedSourceIndex = idx;
+      else if (this.selectedSourceIndex >= this.sources.length) this.selectedSourceIndex = 0;
+    } else if (this.selectedSourceIndex >= this.sources.length) {
+      this.selectedSourceIndex = 0;
+    }
 
     this._renderServers();
     this._playSource(this.sources[this.selectedSourceIndex] || this.sources[0]);
@@ -244,28 +308,38 @@ export class PlayerPage {
       btn.innerHTML = `<span>${this.ui.escapeHtml(src.name)}</span> ${src.badge ? `<small class="chip-badge">${src.badge}</small>` : ''}`;
       btn.onclick = () => {
         this.selectedSourceIndex = idx;
+        // Sauvegarde la préférence de l'utilisateur
+        this.storage.setItem('tsuki_preferred_server', src.id);
         this._renderServers();
         this._playSource(src);
       };
       list.appendChild(btn);
     });
+
+    // Met à jour le texte explicatif
+    const noticeEl = this.element.querySelector('#player-notice-text');
+    const activeSrc = this.sources[this.selectedSourceIndex];
+    if (noticeEl && activeSrc) {
+      noticeEl.innerHTML = `<strong>${this.ui.escapeHtml(activeSrc.name)}</strong> : ${this.ui.escapeHtml(activeSrc.desc || 'Flux vidéo prêt.')}`;
+    }
   }
 
   _playSource(source) {
+    if (!source) return;
     const wrapper = this.element.querySelector('#player-wrapper');
     this._destroyHls();
     wrapper.innerHTML = '';
 
     const spinner = document.createElement('div');
     spinner.className = 'player-loading-spinner';
-    spinner.innerHTML = `<div class="spinner"></div><span>Connexion au flux ${this.ui.escapeHtml(source.name)}…</span>`;
+    spinner.innerHTML = `<div class="spinner"></div><span>Connexion à ${this.ui.escapeHtml(source.name)}…</span>`;
     wrapper.appendChild(spinner);
 
     if (source.type === 'iframe') {
       const iframe = document.createElement('iframe');
       iframe.className = 'player-embed-frame';
       iframe.src = source.url;
-      iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+      iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen');
       iframe.setAttribute('allowfullscreen', 'true');
       iframe.onload = () => {
         spinner.remove();
@@ -292,7 +366,7 @@ export class PlayerPage {
         });
         hls.on(Hls.Events.ERROR, () => {
           spinner.remove();
-          this.ui.toast('Erreur de flux direct. Essaie le Serveur 1 ou 2.', 'warning');
+          this.ui.toast('Erreur flux direct. Changement vers le Serveur 1 ou 2 conseillé.', 'warning');
         });
       } else {
         video.src = source.url;
@@ -302,7 +376,7 @@ export class PlayerPage {
         };
         video.onerror = () => {
           spinner.remove();
-          this.ui.toast('Flux indisponible. Bascule sur un autre serveur.', 'warning');
+          this.ui.toast('Flux indisponible. Cliquez sur un autre serveur.', 'warning');
         };
       }
     }
@@ -311,11 +385,11 @@ export class PlayerPage {
   switchEpisode(ep) {
     this.currentEpisode = Math.max(1, ep);
 
-    // Met à jour la tranche active pour qu'elle corresponde à l'épisode
+    // Ajuste la tranche active
     this.activeRangeIndex = Math.floor((this.currentEpisode - 1) / this.rangeSize);
 
-    // Mise à jour de l'URL hash sans recharger toute la page
-    const newHash = `#/lecteur?animeId=${encodeURIComponent(this.animeId)}&ep=${this.currentEpisode}&title=${encodeURIComponent(this.currentAnime.title || '')}&cover=${encodeURIComponent(this.currentAnime.coverImage || '')}`;
+    // Met à jour l'URL sans rechargement de page
+    const newHash = `#/lecteur?animeId=${encodeURIComponent(this.animeId)}&ep=${this.currentEpisode}&sa=${this.currentSeason}&title=${encodeURIComponent(this.currentAnime.title || '')}&cover=${encodeURIComponent(this.currentAnime.coverImage || '')}`;
     history.replaceState(null, '', newHash);
 
     this._loadStream();
@@ -388,6 +462,12 @@ export class PlayerPage {
         if (this.currentEpisode > 1) this.switchEpisode(this.currentEpisode - 1);
       } else if (e.key === 'c' || e.key === 'C') {
         const btn = this.element.querySelector('#player-cinema-btn');
+        btn?.click();
+      } else if (e.key === 'f' || e.key === 'F') {
+        const btn = this.element.querySelector('#player-fullscreen-btn');
+        btn?.click();
+      } else if (e.key === 'r' || e.key === 'R') {
+        const btn = this.element.querySelector('#player-reload-btn');
         btn?.click();
       }
     };

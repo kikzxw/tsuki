@@ -1,10 +1,10 @@
 /* ==========================================================================
    Tsuki — Moteur de Résolution Streaming & Multi-Serveurs
-   Gère la résolution des sources vidéo (Frembed, VidSrc, HLS, Trailer)
-   et assure qu'aucun anime n'est bloqué.
+   Ordonne les serveurs par fiabilité et préférence utilisateur.
+   AUCUN lecteur test / flux factice : uniquement de vrais lecteurs streaming.
    ========================================================================== */
 
-// Base de correspondance AniList ID / Clé Démo / MAL ID -> TMDB ID & type
+// Base de correspondance AniList ID / Clé Démo -> TMDB ID & type
 const TMDB_MAP = {
   // Demo items
   'demo-1': { id: '1429', type: 'tv' },
@@ -52,8 +52,13 @@ const TMDB_MAP = {
   'demo-43': { id: '42480', type: 'movie' },
   'demo-44': { id: '110420', type: 'movie' },
   'demo-45': { id: '315011', type: 'movie' },
+  'demo-46': { id: '341174', type: 'movie' },
+  'demo-47': { id: '441130', type: 'movie' },
+  'demo-48': { id: '242828', type: 'movie' },
+  'demo-49': { id: '149871', type: 'movie' },
+  'demo-50': { id: '15049', type: 'movie' },
 
-  // AniList top anime IDs
+  // AniList IDs populaires
   '1': { id: '1246', type: 'tv' }, // Cowboy Bebop
   '20': { id: '46260', type: 'tv' }, // Naruto
   '21': { id: '37854', type: 'tv' }, // One Piece
@@ -92,6 +97,15 @@ const TMDB_MAP = {
   '14513': { id: '85937', type: 'tv' }, // Demon Slayer Entertainment Arc
   '155963': { id: '85937', type: 'tv' }, // Demon Slayer Swordsmith Arc
   '166240': { id: '85937', type: 'tv' }, // Demon Slayer Hashira Arc
+  '153288': { id: '207347', type: 'tv' }, // Kaiju No. 8
+  '171018': { id: '240411', type: 'tv' }, // Dandadan
+  '128893': { id: '154522', type: 'tv' }, // Hell's Paradise
+  '74204': { id: '74204', type: 'tv' }, // Black Clover
+  '60863': { id: '60863', type: 'tv' }, // Haikyuu!!
+  '65942': { id: '65942', type: 'tv' }, // Re:Zero
+  '64196': { id: '64196', type: 'tv' }, // Overlord
+  '65701': { id: '65701', type: 'tv' }, // Konosuba
+  '67075': { id: '67075', type: 'tv' }, // Mob Psycho 100
   '199': { id: '129', type: 'movie' }, // Spirited Away
   '164': { id: '128', type: 'movie' }, // Princess Mononoke
   '431': { id: '4935', type: 'movie' }, // Howl's Moving Castle
@@ -100,7 +114,9 @@ const TMDB_MAP = {
   '21519': { id: '372058', type: 'movie' }, // Your Name
   '98394': { id: '372058', type: 'movie' }, // Your Name
   '98334': { id: '378064', type: 'movie' }, // A Silent Voice
-  '102': { id: '102', type: 'movie' },
+  '106286': { id: '568160', type: 'movie' }, // Weathering with You
+  '135340': { id: '916224', type: 'movie' }, // Suzume
+  '145137': { id: '508883', type: 'movie' }, // The Boy and the Heron
 };
 
 // Titres normalisés vers TMDB ID
@@ -124,6 +140,7 @@ const TITLE_MAP = [
   { match: /bleach/i, id: '30984', type: 'tv' },
   { match: /dragon ball z/i, id: '12971', type: 'tv' },
   { match: /^dragon ball$/i, id: '12609', type: 'tv' },
+  { match: /dragon ball super/i, id: '62715', type: 'tv' },
   { match: /pok[eé]mon/i, id: '3681', type: 'tv' },
   { match: /frieren/i, id: '209867', type: 'tv' },
   { match: /solo leveling/i, id: '211128', type: 'tv' },
@@ -131,11 +148,21 @@ const TITLE_MAP = [
   { match: /spy x family/i, id: '120089', type: 'tv' },
   { match: /oshi no ko/i, id: '203737', type: 'tv' },
   { match: /vinland saga/i, id: '89456', type: 'tv' },
+  { match: /dandadan/i, id: '240411', type: 'tv' },
+  { match: /kaiju no\.?\s?8/i, id: '207347', type: 'tv' },
+  { match: /black clover/i, id: '74204', type: 'tv' },
+  { match: /haikyu/i, id: '60863', type: 'tv' },
+  { match: /re:?zero/i, id: '65942', type: 'tv' },
+  { match: /overlord/i, id: '64196', type: 'tv' },
+  { match: /mob psycho/i, id: '67075', type: 'tv' },
   { match: /your name|kimi no na wa/i, id: '372058', type: 'movie' },
   { match: /silent voice|koe no katachi/i, id: '378064', type: 'movie' },
   { match: /spirited away|voyage de chihiro/i, id: '129', type: 'movie' },
   { match: /princess mononoke|princesse mononok/i, id: '128', type: 'movie' },
   { match: /howl's moving castle|ch[aâ]teau ambulant/i, id: '4935', type: 'movie' },
+  { match: /weathering with you|enfants du temps/i, id: '568160', type: 'movie' },
+  { match: /suzume/i, id: '916224', type: 'movie' },
+  { match: /boy and the heron|garçon et le héron/i, id: '508883', type: 'movie' },
   { match: /akira/i, id: '47', type: 'movie' },
   { match: /perfect blue/i, id: '10494', type: 'movie' },
   { match: /paprika/i, id: '4977', type: 'movie' },
@@ -175,7 +202,7 @@ export class StreamingEngine {
       }
     }
 
-    // Recherche par correspondance de titre
+    // Recherche par titre
     const titles = [
       media.title,
       media.titleRomaji,
@@ -192,14 +219,14 @@ export class StreamingEngine {
       }
     }
 
-    // Par défaut, si aucun TMDB ID n'est trouvé : on tente avec l'ID numérique AniList
-    // (certains lecteurs acceptent l'ID direct ou on fournit les serveurs alternatifs)
+    // Fallback avec ID numérique
     const isMovie = media.format === 'MOVIE';
     return { id: id.replace(/\D/g, '') || '1429', type: isMovie ? 'movie' : 'tv', fallback: true };
   }
 
   /**
-   * Génère toutes les sources de lecture disponibles pour un épisode donné
+   * Génère les vrais serveurs de streaming triés par fiabilité et préférence.
+   * AUCUN flux démo/test : uniquement des lecteurs réels opérationnels.
    */
   async getSourcesForEpisode(media, { season = 1, episode = 1 } = {}) {
     const sources = [];
@@ -211,87 +238,111 @@ export class StreamingEngine {
     const tmdbId = tmdbInfo?.id;
     const isSeries = !isMovie && tmdbInfo?.type !== 'movie';
 
-    // 1. Source Frembed (Serveur Principal Francophone : VF / VOSTFR)
     if (tmdbId) {
+      // 1. SERVEUR 1 : FREMBED (Recommandé & Préféré en France : VF / VOSTFR)
       const frembedUrl = isSeries
         ? `https://frembed.uno/embed/serie/${tmdbId}?sa=${s}&epi=${ep}`
         : `https://frembed.uno/embed/movie/${tmdbId}`;
 
       sources.push({
-        id: 'frembed-1',
-        name: 'Serveur 1 (Frembed VF / VOSTFR)',
-        badge: 'Recommandé FR',
+        id: 'frembed',
+        name: 'Serveur 1 : Frembed (VF / VOSTFR)',
+        badge: 'Recommandé FR 🇫🇷',
         type: 'iframe',
         url: frembedUrl,
+        desc: 'Lecteur français avec choix de la langue (VF ou VOSTFR) directement dans la vidéo.',
       });
 
-      // 2. Source VidSrc (Serveur International Rapide)
+      // 2. SERVEUR 2 : VIDSRC HD (Ultra-rapide, buffer instantané, HD 1080p)
       const vidsrcUrl = isSeries
         ? `https://vidsrc.to/embed/tv/${tmdbId}/${s}/${ep}`
         : `https://vidsrc.to/embed/movie/${tmdbId}`;
 
       sources.push({
-        id: 'vidsrc-1',
-        name: 'Serveur 2 (VidSrc HD Multi)',
-        badge: 'HD Rapide',
+        id: 'vidsrc',
+        name: 'Serveur 2 : VidSrc HD',
+        badge: 'Ultra Rapide ⚡',
         type: 'iframe',
         url: vidsrcUrl,
+        desc: 'Lecteur international haute performance, qualité HD 1080p garantie.',
       });
 
-      // 3. Source VidSrc CC (Serveur de Secours 3)
+      // 3. SERVEUR 3 : MULTIEMBED (Multi-sources avec bascule automatique)
+      const multiembedUrl = isSeries
+        ? `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${s}&e=${ep}`
+        : `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`;
+
+      sources.push({
+        id: 'multiembed',
+        name: 'Serveur 3 : MultiEmbed',
+        badge: 'Multi-Lecteurs 🛡️',
+        type: 'iframe',
+        url: multiembedUrl,
+        desc: 'Lecteur de secours intégrant plusieurs sous-serveurs alternatifs.',
+      });
+
+      // 4. SERVEUR 4 : 2EMBED (Secours direct)
+      const twoEmbedUrl = isSeries
+        ? `https://www.2embed.cc/embedtv/${tmdbId}&s=${s}&e=${ep}`
+        : `https://www.2embed.cc/embed/${tmdbId}`;
+
+      sources.push({
+        id: '2embed',
+        name: 'Serveur 4 : 2Embed HD',
+        badge: 'Secours 🔄',
+        type: 'iframe',
+        url: twoEmbedUrl,
+        desc: 'Serveur alternatif mondial en cas de saturation réseau.',
+      });
+
+      // 5. SERVEUR 5 : VIDSRC CC
       const vidsrcCcUrl = isSeries
         ? `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${s}/${ep}`
         : `https://vidsrc.cc/v2/embed/movie/${tmdbId}`;
 
       sources.push({
-        id: 'vidsrc-2',
-        name: 'Serveur 3 (VidSrc CC Secours)',
-        badge: 'Secours',
+        id: 'vidsrc-cc',
+        name: 'Serveur 5 : VidSrc CC',
+        badge: 'Secours 2 🌐',
         type: 'iframe',
         url: vidsrcCcUrl,
+        desc: 'Deuxième miroir VidSrc avec sous-titres multilingues.',
       });
     }
 
-    // 4. Source AnimeDoc / Direct HLS (si le Worker a la clé et répond)
+    // 6. SOURCE HLS DIRECTE : Si le backend AnimeDoc est configuré avec sa clé
     if (this.animedoc && media?.id) {
       try {
         const animedocData = await this.animedoc.getMediaSources(media.id);
         const list = animedocData?.data?.sources || animedocData?.sources || [];
         list.forEach((src, idx) => {
           if (src.url) {
-            sources.push({
-              id: `animedoc-${idx}`,
-              name: `Flux Direct ${src.quality || 'HD'}`,
-              badge: 'Direct HLS',
+            sources.unshift({
+              id: `direct-${idx}`,
+              name: `Flux Direct HD (${src.quality || '1080p'})`,
+              badge: 'Flux Direct HLS 🚀',
               type: 'hls',
               url: src.url,
+              desc: 'Lecture native directe sans publicité ni lecteur externe.',
             });
           }
         });
       } catch (_) {
-        // En local ou sans clé, continue sans bloquer
+        // En local ou sans secret, on continue sans interrompre
       }
     }
 
-    // 5. Source Bande-Annonce Officielle (YouTube Trailer d'AniList)
+    // 7. BANDE-ANNONCE OFFICIELLE : Si l'anime dispose d'un trailer AniList
     if (media?.trailer && media.trailer.id && (media.trailer.site === 'youtube' || !media.trailer.site)) {
       sources.push({
         id: 'trailer',
         name: 'Bande-annonce HD (YouTube)',
-        badge: 'Trailer Officiel',
+        badge: 'Trailer Officiel 🍿',
         type: 'iframe',
         url: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(media.trailer.id)}?autoplay=1&rel=0`,
+        desc: 'Bande-annonce et extraits vidéo officiels.',
       });
     }
-
-    // 6. Source Démo HLS de Secours (Assure une lecture vidéo native garantie pour tests & offline)
-    sources.push({
-      id: 'demo-stream',
-      name: 'Lecteur Démo Vidéo (Test HLS)',
-      badge: 'Test Stream',
-      type: 'hls',
-      url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-    });
 
     return sources;
   }
