@@ -1,7 +1,7 @@
 /* ==========================================================================
    Tsuki — Service Worker (PWA hors-ligne)
    ========================================================================== */
-const CACHE_NAME = 'sakura-v4';
+const CACHE_NAME = 'tsuki-v5';
 const ASSETS = [
   './',
   './index.html',

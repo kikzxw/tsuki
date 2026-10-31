@@ -1,6 +1,6 @@
 /* Shared public configuration. Credentials belong in Worker secrets, never here. */
 export const config = Object.freeze({
-  siteName: 'Sakura',
+  siteName: 'Tsuki',
   siteTagline: 'Anime Library',
 
   anilist: Object.freeze({

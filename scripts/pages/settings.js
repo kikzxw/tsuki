@@ -3,7 +3,7 @@ export class SettingsPage {
   async render() {
     const page = document.createElement('section'); page.className = 'page library-page';
     page.innerHTML = `<header class="page-header"><p class="eyebrow">TON ESPACE</p><h1>Préférences</h1><p class="page-subtitle">Garde ta bibliothèque comme tu l'aimes.</p></header>
-      <div class="settings-card"><h2>Apparence</h2><p class="settings-desc">Sakura est pensée pour la nuit, avec ses accents rose cerisier.</p><button id="toggle-theme" class="btn btn-outline">Basculer le contraste</button><div class="divider"></div><h2>Réinitialiser la bibliothèque</h2><p class="settings-desc">Effacer les favoris, les listes et l'historique enregistrés sur cet appareil.</p><button id="clear-library" class="btn btn-outline danger-button">Tout effacer</button></div>`;
+      <div class="settings-card"><h2>Apparence</h2><p class="settings-desc">Tsuki est pensée pour la nuit, avec ses accents rose cerisier.</p><button id="toggle-theme" class="btn btn-outline">Basculer le contraste</button><div class="divider"></div><h2>Réinitialiser la bibliothèque</h2><p class="settings-desc">Effacer les favoris, les listes et l'historique enregistrés sur cet appareil.</p><button id="clear-library" class="btn btn-outline danger-button">Tout effacer</button></div>`;
     return page;
   }
   async onMount() {

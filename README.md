@@ -1,6 +1,6 @@
-# Sakura — Anime Library
+# Tsuki — Anime Library
 
-Sakura is a responsive anime discovery and personal library app, deployed as a Cloudflare Worker. The interface is French-first and keeps favorites, lists, preferences, and viewing history in the visitor's browser.
+Tsuki is a responsive anime discovery and personal library app, deployed as a Cloudflare Worker. The interface is French-first and keeps favorites, lists, preferences, and viewing history in the visitor's browser.
 
 ## Local preview
 
@@ -30,7 +30,7 @@ If deploying from **Cloudflare Workers Builds** in the dashboard, add `ANIMEDOC_
 - Live trending, top-rated, genre, movie, search, and detail views
 - Anime summaries, covers, ratings, episode counts, characters, and staff
 - Favorites, custom lists, and a 50-item viewing history stored locally
-- Responsive Sakura dark theme, keyboard-accessible navigation, reduced-motion support
+- Responsive sakura-pink dark theme, keyboard-accessible navigation, reduced-motion support
 - PWA install and offline shell cache
 
 ## Project map

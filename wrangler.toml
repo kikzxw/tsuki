@@ -13,5 +13,5 @@ directory = "."
 
 # Variables d'environnement
 [vars]
-SITE_NAME = "Sakura"
+SITE_NAME = "Tsuki"
 SITE_URL = "https://tsuki.kikzxw.workers.dev"

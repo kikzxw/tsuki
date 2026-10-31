@@ -17,7 +17,7 @@ export class App {
 
   async init() {
     const year = document.getElementById('footerYear');
-    if (year) year.textContent = `© ${new Date().getFullYear()} Sakura Library`;
+    if (year) year.textContent = `© ${new Date().getFullYear()} Tsuki Library`;
     this._initTheme();
     this._initGlobalSearch();
     this._initFavButton();
