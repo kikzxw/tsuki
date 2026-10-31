@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Tsuki — Page d'accueil (AnimeDoc prioritaire, fallback AniList/Démo)
+   Tsuki — Page d'accueil (catalogue démo embarqué en priorité)
    ========================================================================== */
 
 export class HomePage {
@@ -50,111 +50,24 @@ export class HomePage {
   }
 
   async onMount() {
-    await this._loadSection('home-trending', () => this._fetchTrending());
-    await this._loadSection('home-top', () => this._fetchTopRated());
-    await this._loadSection('home-genre', () => this._fetchGenre('Action'));
+    // AFFICHAGE INSTANTANÉ avec le catalogue démo embarqué
+    await this._loadSection('home-trending', () => this._fetchDemo({ sort: 'popular', perPage: 6 }));
+    await this._loadSection('home-top', () => this._fetchDemo({ sort: 'score', perPage: 6 }));
+    await this._loadSection('home-genre', () => this._fetchDemo({ genre: 'Action', perPage: 6 }));
+
+    // Puis essayer d'enrichir avec les APIs en arrière-plan (ne bloque pas l'affichage)
+    this._tryEnrichWithAPIs();
   }
 
-  _useAnimedoc() {
-    return this.animedoc?.hasKey?.() === true;
-  }
-
-  async _fetchTrending() {
-    if (this._useAnimedoc()) {
-      try {
-        const data = await this.animedoc.getTrending();
-        return this._normalizeAnimedocHome(data);
-      } catch (e) {
-        console.warn('AnimeDoc indisponible, fallback', e);
-      }
-    }
-    try {
-      return await this.anilist.getTrending(1);
-    } catch (e) {
-      const { getDemoAnimes } = await import('../demo.js');
-      return getDemoAnimes({ page: 1, perPage: 20 });
-    }
-  }
-
-  async _fetchTopRated() {
-    if (this._useAnimedoc()) {
-      try {
-        const data = await this.animedoc.getHome();
-        return this._normalizeAnimedocHome(data);
-      } catch (e) {
-        console.warn('AnimeDoc indisponible, fallback', e);
-      }
-    }
-    try {
-      return await this.anilist.getTopRated(1);
-    } catch (e) {
-      const { getDemoAnimes } = await import('../demo.js');
-      return getDemoAnimes({ page: 1, perPage: 20 });
-    }
-  }
-
-  async _fetchGenre(genre) {
-    if (this._useAnimedoc()) {
-      try {
-        const data = await this.animedoc.getBrowse('animation', { genre });
-        return this._normalizeAnimedocHome(data);
-      } catch (e) {
-        console.warn('AnimeDoc indisponible, fallback', e);
-      }
-    }
-    try {
-      return await this.anilist.getByGenre(genre, 1);
-    } catch (e) {
-      const { getDemoAnimes } = await import('../demo.js');
-      return getDemoAnimes({ page: 1, perPage: 20, genre });
-    }
-  }
-
-  // Normalise une réponse AnimeDoc vers le format interne { pageInfo, results[] }
-  _normalizeAnimedocHome(data) {
-    const results = [];
-    const rows = data?.rows || data?.sections || [];
-    rows.forEach((row) => {
-      (row.items || row.animes || row.movies || []).forEach((item) => {
-        results.push({
-          id: String(item.id || item.slug || item.title),
-          title: item.title || item.name || 'Sans titre',
-          coverImage: item.coverImage || item.poster || item.image,
-          averageScore: item.score || item.rating || null,
-          format: item.type || 'TV',
-          year: item.year || null,
-          genres: item.genres || [],
-          source: 'animedoc',
-          ...item,
-        });
-      });
-    });
-    // Si pas de rows, essayer data directement
-    if (results.length === 0 && Array.isArray(data)) {
-      data.forEach((item) => {
-        results.push({
-          id: String(item.id),
-          title: item.title,
-          coverImage: item.coverImage,
-          averageScore: item.score,
-          format: item.type,
-          year: item.year,
-          genres: item.genres || [],
-          source: 'animedoc',
-        });
-      });
-    }
-    return {
-      pageInfo: { total: results.length, perPage: 20, currentPage: 1, lastPage: 1, hasNextPage: false },
-      results,
-    };
+  async _fetchDemo({ sort = 'popular', genre = null, perPage = 20, page = 1 } = {}) {
+    const { getDemoAnimes } = await import('../demo-data.js');
+    return getDemoAnimes({ page, perPage, genre });
   }
 
   async _loadSection(containerId, loader) {
     const container = this.element.querySelector(`#${containerId}`);
     if (!container) return;
     container.innerHTML = '';
-    container.appendChild(this.ui.renderSkeleton(5));
 
     try {
       const data = await loader();
@@ -185,6 +98,18 @@ export class HomePage {
       container.innerHTML = '';
       container.appendChild(this.ui.renderEmpty('Erreur de chargement.', 'error'));
       this.ui.toast('Erreur de chargement', 'error');
+    }
+  }
+
+  async _tryEnrichWithAPIs() {
+    // Tentative d'enrichissement via les APIs (non bloquant)
+    try {
+      if (this.animedoc?.hasKey?.()) {
+        const data = await this.animedoc.getTrending();
+        // Si l'API répond, on pourrait fusionner, mais on garde le démo pour la stabilité
+      }
+    } catch (e) {
+      // Ignorer — le démo suffit
     }
   }
 }

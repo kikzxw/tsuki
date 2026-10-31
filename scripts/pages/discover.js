@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Tsuki — Page Découvrir (AnimeDoc + filtres + fallback)
+   Tsuki — Page Découvrir (catalogue démo embarqué en priorité)
    ========================================================================== */
 
 export class DiscoverPage {
@@ -10,7 +10,7 @@ export class DiscoverPage {
     this.ui = ui;
     this.storage = storage;
     this.element = null;
-    this.filters = { sort: 'POPULARITY_DESC', genre: null, format: null, status: null, page: 1 };
+    this.filters = { sort: 'popular', genre: null, format: null, status: null, page: 1 };
   }
 
   async render() {
@@ -26,9 +26,8 @@ export class DiscoverPage {
         <div class="filter-group">
           <label class="filter-label">Trier par</label>
           <select id="disc-sort">
-            <option value="POPULARITY_DESC">Popularité</option>
-            <option value="SCORE_DESC">Mieux notés</option>
-            <option value="TRENDING_DESC">Tendances</option>
+            <option value="popular">Popularité</option>
+            <option value="score">Mieux notés</option>
           </select>
         </div>
         <div class="filter-group">
@@ -130,60 +129,8 @@ export class DiscoverPage {
   }
 
   async _fetchAnimes() {
-    if (this.animedoc?.hasKey?.()) {
-      try {
-        const data = await this.animedoc.getBrowse('animation', {
-          sort: this.filters.sort === 'POPULARITY_DESC' ? 'latest' : this.filters.sort === 'SCORE_DESC' ? 'top' : 'latest',
-          genre: this.filters.genre,
-          page: this.filters.page,
-        });
-        return this._normalizeAnimedoc(data);
-      } catch (e) {
-        console.warn('AnimeDoc indisponible, fallback AniList', e);
-      }
-    }
-    try {
-      return await this.anilist.searchMedia({
-        search: null, page: this.filters.page, perPage: 20,
-        sort: this.filters.sort, genre: this.filters.genre, format: this.filters.format,
-      });
-    } catch (e) {
-      const { getDemoAnimes } = await import('../demo.js');
-      return getDemoAnimes({ page: this.filters.page, perPage: 20, genre: this.filters.genre });
-    }
-  }
-
-  _normalizeAnimedoc(data) {
-    const results = [];
-    const rows = data?.rows || data?.sections || data?.items || [];
-    rows.forEach((row) => {
-      (row.items || row.animes || row.movies || []).forEach((item) => {
-        results.push({
-          id: String(item.id || item.slug || item.title),
-          title: item.title || item.name || 'Sans titre',
-          coverImage: item.coverImage || item.poster || item.image,
-          averageScore: item.score || item.rating || null,
-          format: item.type || 'TV',
-          year: item.year || null,
-          genres: item.genres || [],
-          source: 'animedoc',
-          ...item,
-        });
-      });
-    });
-    if (results.length === 0 && Array.isArray(data)) {
-      data.forEach((item) => {
-        results.push({
-          id: String(item.id), title: item.title, coverImage: item.coverImage,
-          averageScore: item.score, format: item.type, year: item.year,
-          genres: item.genres || [], source: 'animedoc',
-        });
-      });
-    }
-    return {
-      pageInfo: { total: results.length, perPage: 20, currentPage: 1, lastPage: 1, hasNextPage: false },
-      results,
-    };
+    const { getDemoAnimes } = await import('../demo-data.js');
+    return getDemoAnimes({ page: this.filters.page, perPage: 20, genre: this.filters.genre });
   }
 
   _renderPagination(container, pageInfo) {

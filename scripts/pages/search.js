@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Tsuki — Page Recherche (AnimeDoc + débounce + fallback)
+   Tsuki — Page Recherche (catalogue démo embarqué en priorité)
    ========================================================================== */
 
 export class SearchPage {
@@ -112,53 +112,8 @@ export class SearchPage {
   }
 
   async _fetchSearch() {
-    if (this.animedoc?.hasKey?.()) {
-      try {
-        const data = await this.animedoc.search(this.query, { page: this.page, perPage: 20 });
-        return this._normalizeAnimedoc(data);
-      } catch (e) {
-        console.warn('AnimeDoc indisponible, fallback AniList', e);
-      }
-    }
-    try {
-      return await this.anilist.searchMedia({ search: this.query, page: this.page, perPage: 20 });
-    } catch (e) {
-      const { getDemoAnimes } = await import('../demo.js');
-      return getDemoAnimes({ page: this.page, perPage: 20 });
-    }
-  }
-
-  _normalizeAnimedoc(data) {
-    const results = [];
-    const rows = data?.rows || data?.sections || data?.items || data?.results || [];
-    rows.forEach((row) => {
-      (row.items || row.animes || row.movies || []).forEach((item) => {
-        results.push({
-          id: String(item.id || item.slug || item.title),
-          title: item.title || item.name || 'Sans titre',
-          coverImage: item.coverImage || item.poster || item.image,
-          averageScore: item.score || item.rating || null,
-          format: item.type || 'TV',
-          year: item.year || null,
-          genres: item.genres || [],
-          source: 'animedoc',
-          ...item,
-        });
-      });
-    });
-    if (results.length === 0 && Array.isArray(data)) {
-      data.forEach((item) => {
-        results.push({
-          id: String(item.id), title: item.title, coverImage: item.coverImage,
-          averageScore: item.score, format: item.type, year: item.year,
-          genres: item.genres || [], source: 'animedoc',
-        });
-      });
-    }
-    return {
-      pageInfo: { total: results.length, perPage: 20, currentPage: 1, lastPage: 1, hasNextPage: false },
-      results,
-    };
+    const { searchDemoAnimes } = await import('../demo-data.js');
+    return searchDemoAnimes(this.query, { page: this.page, perPage: 20 });
   }
 
   _renderPagination(container, pageInfo) {

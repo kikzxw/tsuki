@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Tsuki — Page Lecteur (sources vidéo directes AnimeDoc + hls.js)
+   Tsuki — Page Lecteur (flux de test par défaut + sources AnimeDoc)
    ========================================================================== */
 
 export class PlayerPage {
@@ -70,7 +70,7 @@ export class PlayerPage {
       return;
     }
 
-    // Charger les sources de lecture
+    // Charger les sources depuis AnimeDoc si clé configurée
     try {
       if (this.animedoc?.hasKey?.()) {
         const sourcesData = await this.animedoc.getMediaSources(animeId);
@@ -78,14 +78,13 @@ export class PlayerPage {
       }
     } catch (e) {
       console.warn('Impossible de charger les sources AnimeDoc', e);
-      this.ui.toast('Sources vidéo indisponibles.', 'warning');
     }
 
+    // Si aucune source, utiliser un flux HLS de test public (toujours disponible)
     if (this.currentSources.length === 0) {
-      // Fallback : flux HLS de test public
       this.currentSources = [{
         url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-        quality: 'Test',
+        quality: 'Test (720p)',
         type: 'application/vnd.apple.mpegurl',
         isM3U8: true,
       }];
@@ -168,7 +167,6 @@ export class PlayerPage {
 
   _renderEpisodes(container, animeId) {
     container.innerHTML = '';
-    // On ne connaît pas le nombre total sans appel détails, on affiche les 20 premiers
     const limit = 20;
     const frag = document.createDocumentFragment();
     for (let i = 1; i <= limit; i++) {

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Tsuki — Page Détail d'un anime (AnimeDoc + fallback AniList/Démo)
+   Tsuki — Page Détail d'un anime (catalogue démo embarqué en priorité)
    ========================================================================== */
 
 export class DetailPage {
@@ -104,39 +104,41 @@ export class DetailPage {
     this.media = null;
     this.videoSources = [];
 
-    // --- 1. Essayer AnimeDoc (si clé configurée) ---
-    if (this.animedoc?.hasKey?.()) {
+    // 1. Essayer le catalogue démo embarqué (toujours disponible)
+    try {
+      const { getDemoAnime } = await import('../demo-data.js');
+      this.media = getDemoAnime(this.mediaId);
+    } catch (e) {
+      console.warn('Demo data indisponible', e);
+    }
+
+    // 2. Si pas trouvé dans le démo, essayer AnimeDoc (si clé configurée)
+    if (!this.media && this.animedoc?.hasKey?.()) {
       try {
         const details = await this.animedoc.getDetails(this.mediaId);
         this.media = this._normalizeAnimedocDetail(details);
-        if (this.media) {
-          // Récupérer les sources de lecture
-          try {
-            const sources = await this.animedoc.getMediaSources(this.mediaId);
-            this.videoSources = this._extractVideoSources(sources);
-          } catch (_) {}
-        }
+        try {
+          const sources = await this.animedoc.getMediaSources(this.mediaId);
+          this.videoSources = this._extractVideoSources(sources);
+        } catch (_) {}
       } catch (e) {
-        console.warn('AnimeDoc détails indisponible, fallback', e);
+        console.warn('AnimeDoc détails indisponible', e);
       }
     }
 
-    // --- 2. Fallback AniList ---
+    // 3. Fallback AniList
     if (!this.media) {
       try {
         this.media = await this.anilist.getMedia(this.mediaId);
         if (!this.media) throw new Error('Aucun média');
       } catch (e) {
-        const { getDemoAnime } = await import('../demo.js');
-        this.media = getDemoAnime(this.mediaId);
-        if (!this.media) {
-          titleEl.textContent = 'Anime introuvable';
-          return;
-        }
+        console.warn('AniList détail indisponible', e);
+        titleEl.textContent = 'Anime introuvable';
+        return;
       }
     }
 
-    // --- Rendu des métadonnées ---
+    // Rendu des métadonnées
     titleEl.textContent = this.media.title;
     poster.src = this.media.coverImage || 'https://placehold.co/300x450/png?text=No+Image';
     poster.alt = `Affiche de ${this.media.title}`;
@@ -175,7 +177,8 @@ export class DetailPage {
       if (hasVideo) {
         this.router.navigate(`/lecteur?animeId=${this.mediaId}&title=${encodeURIComponent(this.media.title)}`);
       } else {
-        this.ui.toast('Aucune source vidéo disponible pour ce titre.', 'warning');
+        // Même sans source vidéo connue, on ouvre le lecteur avec un flux de test
+        this.router.navigate(`/lecteur?animeId=${this.mediaId}&title=${encodeURIComponent(this.media.title)}`);
       }
     };
 
@@ -200,14 +203,10 @@ export class DetailPage {
     this._renderLinks(linksEl, this.media.externalLinks || []);
   }
 
-  // --- Normalisation détail AnimeDoc ---
   _normalizeAnimedocDetail(details) {
     const d = details?.data || details || {};
     if (!d && !details.title) return null;
-
-    // AnimeDoc peut renvoyer { title, description, coverImage, ... } directement
-    // ou enveloppé dans data
-    const m = {
+    return {
       id: String(d.id || details.id || this.mediaId),
       title: d.title || details.title || 'Sans titre',
       titleRomaji: d.titleRomaji || details.titleRomaji,
@@ -234,14 +233,11 @@ export class DetailPage {
       endDate: d.endDate || details.endDate || null,
       source: 'animedoc',
     };
-    return m;
   }
 
-  // --- Extraction des sources vidéo depuis media-sources ---
   _extractVideoSources(sources) {
     const out = [];
     const data = sources?.data || sources || {};
-    // AnimeDoc media-sources peut renvoyer { sources: [{ url, quality, type, ...] }, subtitles: [...] }
     const list = data.sources || data.mediaSources || data.urls || [];
     list.forEach((s) => {
       if (s.url) {
@@ -269,7 +265,6 @@ export class DetailPage {
       btn.className = 'episode-btn';
       btn.textContent = `Ép. ${i}`;
       btn.onclick = () => {
-        // Passe l'épisode en paramètre au lecteur
         this.router.navigate(`/lecteur?animeId=${this.mediaId}&ep=${i}&title=${encodeURIComponent(this.media.title)}`);
       };
       frag.appendChild(btn);
