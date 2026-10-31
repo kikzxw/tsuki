@@ -1,0 +1,31 @@
+# ============================================================================
+# Tsuki — Configuration Cloudflare Workers
+# Déploiement sur tsuki.kikzxw.workers.dev
+# ============================================================================
+name = "tsuki"
+main = "src/worker.js"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Déclare le domaine workers.dev
+workers_dev = true
+
+# Assets statiques servis par le worker
+[assets]
+directory = "/"
+exclude = [
+  "wrangler.toml",
+  "package.json",
+  "package-lock.json",
+  "node_modules/",
+  ".git/",
+  ".github/",
+  "README.md",
+  "src/",
+  "*.md",
+]
+
+# Variables d'environnement (optionnel — la clé API est déjà dans config.js)
+[vars]
+SITE_NAME = "Tsuki"
+SITE_URL = "https://tsuki.kikzxw.workers.dev"

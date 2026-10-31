@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="description" content="Tsuki — Streaming d'animes complet. Découvrez, recherchez et regardez des milliers d'animes avec toutes les métadonnées (notes, synopsis, casting, épisodes) via AnimeDoc et AniList.">
+    <meta name="theme-color" content="#0b0c10">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" type="image/svg+xml" href="/icon-192.svg">
+    <link rel="apple-touch-icon" href="/icon-192.svg">
+    <link rel="manifest" href="/manifest.json">
+    <title>Tsuki | Anime Stream</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <!-- hls.js épinglé pour la lecture HLS (.m3u8) -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+    <!-- Lien d'évitement clavier -->
+    <a href="#main" class="skip-link">Aller au contenu principal</a>
+
+    <!-- Navigation principale -->
+    <header class="shell-header">
+        <div class="header-inner">
+            <a href="#/" class="logo" aria-label="Accueil Tsuki">
+                <svg class="logo-mark" viewBox="0 0 32 32" aria-hidden="true">
+                    <path d="M16 2C8.3 2 2 8.3 2 16s6.3 14 14 14 14-6.3 14-14S23.7 2 16 2zm0 26C9.4 28 4 22.6 4 16S9.4 4 16 4s12 5.4 12 12-5.4 12-12 12z" fill="#e50914"/>
+                    <path d="M10 12l2 4 4-2" fill="#fff" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="logo-text">Tsuki<span class="logo-dot">.</span><span class="logo-sub">Stream</span></span>
+            </a>
+
+            <form class="shell-search" role="search" aria-label="Recherche rapide">
+                <input type="search" id="shellSearchInput" placeholder="Rechercher un anime, un film…" autocomplete="off" results="0" spellcheck="false">
+                <button type="submit" aria-label="Lancer la recherche">🔍</button>
+            </form>
+
+            <div class="header-actions">
+                <button id="themeToggle" type="button" class="icon-btn" aria-label="Changer de thème">🌓</button>
+                <a href="#/favoris" class="icon-btn fav-btn" aria-label="Favoris" aria-expanded="false">⭐<span id="shellFavCount" class="visually-hidden">0 favoris</span></a>
+                <a href="#/parametres" class="icon-btn" aria-label="Paramètres">⚙️</a>
+                <button id="userBtn" type="button" class="icon-btn" aria-label="Compte">👤</button>
+            </div>
+        </div>
+    </header>
+
+    <main id="main" tabindex="-1" class="shell-main">
+        <!-- Router outlet : le contenu des pages est injecté ici -->
+        <div id="router-outlet"></div>
+    </main>
+
+    <footer class="shell-footer">
+        <div class="footer-inner">
+            <p>Tsuki — <a href="#/a-propos">À propos</a> · <a href="#/confidentialite">Confidentialité</a> · <a href="#/conditions">Conditions</a></p>
+            <p id="footerYear"></p>
+        </div>
+    </footer>
+
+    <!-- Toast global -->
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <!-- Modal globale -->
+    <div id="globalModal" class="modal hidden" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content"></div>
+    </div>
+
+    <!-- Modules de l'application (ES modules) -->
+    <script type="module">
+        import { config } from './scripts/config.js';
+        import { Storage } from './scripts/storage.js';
+        import { Cache } from './scripts/cache.js';
+        import { AniListAPI } from './scripts/api/anilist.js';
+        import { FrembedAPI } from './scripts/api/frembed.js';
+        import { AnimeDocAPI } from './scripts/api/animedoc.js';
+        import { Router } from './scripts/router.js';
+        import { UI } from './scripts/ui.js';
+        import { HomePage } from './scripts/pages/home.js';
+        import { DiscoverPage } from './scripts/pages/discover.js';
+        import { SearchPage } from './scripts/pages/search.js';
+        import { DetailPage } from './scripts/pages/detail.js';
+        import { PlayerPage } from './scripts/pages/player.js';
+        import { FavoritesPage } from './scripts/pages/favorites.js';
+        import { SettingsPage } from './scripts/pages/settings.js';
+        import { App } from './scripts/app.js';
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            const storage = new Storage();
+            const cache = new Cache();
+            const anilist = new AniListAPI({ cache });
+            const frembed = new FrembedAPI({ cache });
+            const animedoc = new AnimeDocAPI({ cache });
+
+            // Restaurer la clé API AnimeDoc depuis localStorage
+            const savedKey = localStorage.getItem('tsuki_animedoc_key') || '';
+            if (savedKey) animedoc.setApiKey(savedKey);
+
+            const ui = new UI();
+            const router = new Router({ outlet: document.getElementById('router-outlet') });
+
+            // Enregistrer les pages
+            router.register('/', HomePage);
+            router.register('/home', HomePage);
+            router.register('/decouvrir', DiscoverPage);
+            router.register('/recherche', SearchPage);
+            router.register('/anime/:id', DetailPage);
+            router.register('/lecteur', PlayerPage);
+            router.register('/favoris', FavoritesPage);
+            router.register('/parametres', SettingsPage);
+            router.register('/a-propos', AboutPage);
+            router.register('/confidentialite', PrivacyPage);
+            router.register('/conditions', TermsPage);
+
+            const app = new App({
+                storage, cache, anilist, frembed, animedoc, ui, router, config,
+                elements: {
+                    searchInput: document.getElementById('shellSearchInput'),
+                    searchForm: document.querySelector('.shell-search'),
+                    themeToggle: document.getElementById('themeToggle'),
+                    favBtn: document.querySelector('.fav-btn'),
+                    favCount: document.getElementById('shellFavCount'),
+                    userBtn: document.getElementById('userBtn'),
+                    toast: document.getElementById('toast'),
+                    modal: document.getElementById('globalModal'),
+                    modalContent: document.querySelector('#globalModal .modal-content'),
+                    modalBackdrop: document.querySelector('#globalModal .modal-backdrop'),
+                    modalClose: null,
+                }
+            });
+
+            await app.init();
+        });
+
+        // Pages statiques simples
+        function AboutPage({ ui }) {
+            return ui.renderStatic('À propos', `
+                <p><strong>Tsuki</strong> est une plateforme de streaming d'animes démonstrative.</p>
+                <p>Elle utilise <strong>AnimeDoc</strong> (métadonnées + liens de lecture) et <strong>AniList</strong> comme fallback.</p>
+                <p>Configurez votre clé API AnimeDoc dans <a href="#/parametres">Paramètres</a>.</p>
+            `);
+        }
+        function PrivacyPage({ ui }) {
+            return ui.renderStatic('Confidentialité', `
+                <p>Aucune donnée personnelle n'est collectée. Les favoris, le thème et la clé API sont stockés localement dans votre navigateur (localStorage).</p>
+                <p>Les appels API sont effectués directement vers AnimeDoc, AniList et Frembed depuis votre navigateur.</p>
+            `);
+        }
+        function TermsPage({ ui }) {
+            return ui.renderStatic('Conditions', `
+                <p>Site à des fins éducatives et de démonstration. Les liens de lecture dépendent des hébergeurs tiers via AnimeDoc et Frembed.</p>
+            `);
+        }
+    </script>
+</body>
+</html>

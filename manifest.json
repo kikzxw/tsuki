@@ -1,0 +1,15 @@
+{
+  "name": "Tsuki — Anime Stream",
+  "short_name": "Tsuki",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0c10",
+  "theme_color": "#0b0c10",
+  "orientation": "portrait",
+  "lang": "fr",
+  "description": "Streaming d'animes complet : découvrez, recherchez et regardez des milliers d'animes avec toutes les métadonnées (notes, synopsis, casting, épisodes) via AniList et Frembed.",
+  "icons": [
+    { "src": "/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
