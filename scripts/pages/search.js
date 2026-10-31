@@ -3,12 +3,13 @@
    ========================================================================== */
 
 export class SearchPage {
-  constructor({ router, anilist, animedoc, ui, storage } = {}) {
+  constructor({ router, anilist, animedoc, ui, storage, config } = {}) {
     this.router = router;
     this.anilist = anilist;
     this.animedoc = animedoc;
     this.ui = ui;
     this.storage = storage;
+    this.config = config;
     this.element = null;
     this.timer = null;
     this.query = '';
@@ -54,7 +55,7 @@ export class SearchPage {
     btn.onclick = () => this._doSearch(input.value, true);
     input.addEventListener('input', (e) => {
       clearTimeout(this.timer);
-      this.timer = setTimeout(() => this._doSearch(e.target.value), 350);
+      this.timer = setTimeout(() => this._doSearch(e.target.value), this.config.debounceMs);
     });
     input.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); this._doSearch(input.value, true); } });
   }
@@ -97,7 +98,7 @@ export class SearchPage {
         const card = this.ui.renderCard(m, {
           clickable: true, showFav: true, isFavorite: this.storage.isFavorite(m.id),
         });
-        card._onClick = (media) => this.router.navigate(this.router.routes.detail(media.id));
+        card._onClick = (media) => this.router.navigate(this.config.routes.detail(media.id));
         card.querySelector('.anime-fav')._onToggle = (id) => {
           const added = this.storage.toggleFavorite(id);
           this.ui.toast(added ? 'Ajouté aux favoris' : 'Retiré des favoris');

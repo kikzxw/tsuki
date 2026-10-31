@@ -1,74 +1,44 @@
-/* ==========================================================================
-   Tsuki — Configuration centrale
-   ========================================================================== */
-
-export const config = {
-  // Nom du site
+/* Shared public configuration. Credentials belong in Worker secrets, never here. */
+export const config = Object.freeze({
   siteName: 'Sakura',
   siteTagline: 'Anime Library',
 
-  // --- API METADONNEES ---
-  // AniList (GraphQL, gratuit, sans cle, CORS ouvert) — moteur principal anime
-  anilist: {
+  anilist: Object.freeze({
     baseURL: 'https://graphql.anilist.co',
     perPage: 20,
-  },
+    timeout: 12_000,
+  }),
 
-  // TMDB (optionnel — necessite une cle API, saisir ci-dessous si vous en avez une)
-  tmdb: {
-    baseURL: 'https://api.themoviedb.org/3',
-    imageBase: 'https://image.tmdb.org/t/p/',
-    apiKey: '', // laisser vide pour utiliser uniquement AniList
-    language: 'fr-FR',
-  },
+  // Same-origin Worker route; the upstream credential is injected server-side.
+  animedoc: Object.freeze({
+    baseURL: '/api/catalog',
+    timeout: 15_000,
+  }),
 
-  // --- API PRINCIPALE : AnimeDoc ---
-  // La clé est saisie par l'utilisateur dans Paramètres et reste dans son navigateur.
-  animedoc: {
-    baseURL: 'https://api.animedoc.cloud',
-    apiKey: '',
-    timeout: 15000,
-  },
+  debounceMs: 350,
+  cacheTTL: 5 * 60 * 1000,
 
-  // --- API LECTURE (fallback) ---
-  // Frembed (gratuit, sans cle, CORS ouvert) — lecteurs et disponibilite
-  frembed: {
-    baseURL: 'https://frembed.uno',
-    checkMovie: function(id) { return '/api/public/v1/movies/check?id=' + id; },
-    getMovie: function(id) { return '/api/public/v1/movies/' + id; },
-    checkTV: function(id, season, episode) { return '/api/public/v1/tv/check?id=' + id + '&sa=' + season + '&epi=' + episode; },
-    getTV: function(id, season, episode) { return '/api/public/v1/tv/' + id + '?sa=' + season + '&epi=' + episode; },
-    getAnime: function(id) { return '/api/public/v1/anime/' + id; },
-    getDomain: '/api/domain',
-    embedMovie: function(id) { return 'https://frembed.uno/embed/movie/' + id; },
-    embedSerie: function(id, season, episode) { return 'https://frembed.uno/embed/serie/' + id + '?sa=' + season + '&epi=' + episode; },
-  },
-
-  // --- UI ---
-  debounceMs: 300,
-  fetchTimeoutMs: 12000,
-  cacheTTL: 5 * 60 * 1000, // 5 minutes
-
-  // Cles localStorage
-  storageKeys: {
+  storageKeys: Object.freeze({
     theme: 'tsuki_theme',
     favorites: 'tsuki_favorites',
     history: 'tsuki_history',
-    apiBase: 'tsuki_api_base',
-    animedocKey: 'tsuki_animedoc_key',
-  },
+    lists: 'tsuki_lists',
+    media: 'tsuki_media',
+    catalogueLayout: 'tsuki_catalog_layout',
+  }),
 
-  // Routes
-  routes: {
+  routes: Object.freeze({
     home: '/',
     discover: '/decouvrir',
     search: '/recherche',
-    detail: function(id) { return '/anime/' + id; },
+    detail: (id) => `/anime/${encodeURIComponent(id)}`,
     player: '/lecteur',
     favorites: '/favoris',
+    lists: '/listes',
+    history: '/historique',
     about: '/a-propos',
     privacy: '/confidentialite',
     terms: '/conditions',
     settings: '/parametres',
-  },
-};
+  }),
+});

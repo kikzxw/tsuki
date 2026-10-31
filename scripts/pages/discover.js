@@ -3,12 +3,13 @@
    ========================================================================== */
 
 export class DiscoverPage {
-  constructor({ router, anilist, animedoc, ui, storage } = {}) {
+  constructor({ router, anilist, animedoc, ui, storage, config } = {}) {
     this.router = router;
     this.anilist = anilist;
     this.animedoc = animedoc;
     this.ui = ui;
     this.storage = storage;
+    this.config = config;
     this.element = null;
     this.requestId = 0;
     this.filters = { sort: 'popular', genre: null, format: null, status: null, page: 1 };
@@ -77,13 +78,13 @@ export class DiscoverPage {
     this._bindFilters();
     const results = this.element.querySelector('#disc-results');
     const viewButton = this.element.querySelector('#disc-view');
-    const compact = this.storage.getItem('tsuki_catalog_layout') === 'list';
+    const compact = this.storage.getItem(this.config.storageKeys.catalogueLayout) === 'list';
     results.classList.toggle('list-layout', compact);
     viewButton.setAttribute('aria-pressed', String(compact));
     viewButton.textContent = compact ? 'Vue affiches' : 'Vue compacte';
     viewButton.onclick = () => {
       const list = results.classList.toggle('list-layout');
-      this.storage.setItem('tsuki_catalog_layout', list ? 'list' : 'grid');
+      this.storage.setItem(this.config.storageKeys.catalogueLayout, list ? 'list' : 'grid');
       viewButton.setAttribute('aria-pressed', String(list));
       viewButton.textContent = list ? 'Vue affiches' : 'Vue compacte';
     };
@@ -131,7 +132,7 @@ export class DiscoverPage {
           showFav: true,
           isFavorite: this.storage.isFavorite(m.id),
         });
-        card._onClick = (media) => this.router.navigate(this.router.routes.detail(media.id));
+        card._onClick = (media) => this.router.navigate(this.config.routes.detail(media.id));
         card.querySelector('.anime-fav')._onToggle = (id) => {
           const added = this.storage.toggleFavorite(id);
           this.ui.toast(added ? 'Ajouté aux favoris' : 'Retiré des favoris');

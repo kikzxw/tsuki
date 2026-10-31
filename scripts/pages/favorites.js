@@ -3,11 +3,12 @@
    ========================================================================== */
 
 export class FavoritesPage {
-  constructor({ router, anilist, ui, storage } = {}) {
+  constructor({ router, anilist, ui, storage, config } = {}) {
     this.router = router;
     this.anilist = anilist;
     this.ui = ui;
     this.storage = storage;
+    this.config = config;
     this.element = null;
   }
 
@@ -73,7 +74,7 @@ export class FavoritesPage {
         showFav: true,
         isFavorite: true,
       });
-      card._onClick = (m) => this.router.navigate(this.router.routes.detail(m.id));
+      card._onClick = (m) => this.router.navigate(this.config.routes.detail(m.id));
       card.querySelector('.anime-fav')._onToggle = (fid) => {
         this.storage.toggleFavorite(fid);
         this.load();

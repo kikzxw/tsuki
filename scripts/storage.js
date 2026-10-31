@@ -5,7 +5,16 @@
 const volatileStorage = new Map();
 
 export class Storage {
-  constructor() {
+  constructor({ keys = {} } = {}) {
+    this.keys = {
+      theme: 'tsuki_theme',
+      favorites: 'tsuki_favorites',
+      history: 'tsuki_history',
+      lists: 'tsuki_lists',
+      media: 'tsuki_media',
+      catalogueLayout: 'tsuki_catalog_layout',
+      ...keys,
+    };
     this.ready = Promise.resolve();
   }
 
@@ -27,25 +36,25 @@ export class Storage {
 
   // --- Thème ---
   getTheme() {
-    const saved = this._read('tsuki_theme');
+    const saved = this._read(this.keys.theme);
     if (saved) return saved;
     return 'dark';
   }
   setTheme(theme) {
-    this._write('tsuki_theme', theme);
+    this._write(this.keys.theme, theme);
     document.documentElement.dataset.theme = theme;
   }
 
   // --- Favoris ---
   getFavorites() {
     try {
-      return new Set(JSON.parse(this._read('tsuki_favorites') || '[]'));
+      return new Set(JSON.parse(this._read(this.keys.favorites) || '[]'));
     } catch (e) {
       return new Set();
     }
   }
   saveFavorites(set) {
-    this._write('tsuki_favorites', JSON.stringify([...set]));
+    this._write(this.keys.favorites, JSON.stringify([...set]));
     window.dispatchEvent(new CustomEvent('tsuki:favorites-changed'));
   }
   isFavorite(id) {
@@ -62,23 +71,23 @@ export class Storage {
 
   saveMedia(media) {
     try {
-      const items = JSON.parse(this._read('tsuki_media') || '{}');
+      const items = JSON.parse(this._read(this.keys.media) || '{}');
       items[String(media.id)] = media;
-      this._write('tsuki_media', JSON.stringify(items));
+      this._write(this.keys.media, JSON.stringify(items));
     } catch (error) {
       console.warn('Impossible de sauvegarder la fiche anime', error);
     }
   }
   getMedia(id) {
-    try { return JSON.parse(this._read('tsuki_media') || '{}')[String(id)] || null; }
+    try { return JSON.parse(this._read(this.keys.media) || '{}')[String(id)] || null; }
     catch (error) { return null; }
   }
 
   getLists() {
-    try { return JSON.parse(this._read('tsuki_lists') || '{"À voir":[],"En cours":[],"Terminés":[]}'); }
+    try { return JSON.parse(this._read(this.keys.lists) || '{"À voir":[],"En cours":[],"Terminés":[]}'); }
     catch (error) { return { 'À voir': [], 'En cours': [], 'Terminés': [] }; }
   }
-  saveLists(lists) { this._write('tsuki_lists', JSON.stringify(lists)); }
+  saveLists(lists) { this._write(this.keys.lists, JSON.stringify(lists)); }
   addToList(name, media) {
     const lists = this.getLists();
     lists[name] ||= [];
@@ -100,25 +109,17 @@ export class Storage {
 
   // --- Historique de visionnage ---
   getHistory() {
-    try { return JSON.parse(this._read('tsuki_history') || '[]'); } catch (e) { return []; }
+    try { return JSON.parse(this._read(this.keys.history) || '[]'); } catch (e) { return []; }
   }
   addHistory(item) {
     const list = this.getHistory();
     const idx = list.findIndex((h) => String(h.id) === String(item.id));
     if (idx !== -1) list.splice(idx, 1);
     list.unshift({ ...item, watchedAt: Date.now() });
-    this._write('tsuki_history', JSON.stringify(list.slice(0, 50)));
+    this._write(this.keys.history, JSON.stringify(list.slice(0, 50)));
     this.saveMedia(item);
   }
-  clearHistory() { this._remove('tsuki_history'); }
-
-  // --- Configuration API ---
-  getApiBase() {
-    return this._read('tsuki_api_base') || 'https://frembed.uno';
-  }
-  setApiBase(url) {
-    this._write('tsuki_api_base', url);
-  }
+  clearHistory() { this._remove(this.keys.history); }
 
   // --- Accès générique ---
   getItem(key) {
@@ -130,7 +131,7 @@ export class Storage {
 
   // --- Nettoyage des données locales ---
   clearLocalData() {
-    ['tsuki_favorites', 'tsuki_history', 'tsuki_animedoc_key', 'tsuki_lists', 'tsuki_media'].forEach((key) => this._remove(key));
+    [this.keys.favorites, this.keys.history, this.keys.lists, this.keys.media].forEach((key) => this._remove(key));
     window.dispatchEvent(new CustomEvent('tsuki:favorites-changed'));
   }
 }

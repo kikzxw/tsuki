@@ -3,12 +3,13 @@
    ========================================================================== */
 
 export class HomePage {
-  constructor({ router, anilist, animedoc, ui, storage } = {}) {
+  constructor({ router, anilist, animedoc, ui, storage, config } = {}) {
     this.router = router;
     this.anilist = anilist;
     this.animedoc = animedoc;
     this.ui = ui;
     this.storage = storage;
+    this.config = config;
     this.element = null;
   }
 
@@ -102,7 +103,7 @@ export class HomePage {
           showFav: true,
           isFavorite: this.storage?.isFavorite(m.id) || false,
         });
-        card._onClick = (media) => this.router.navigate(this.router.routes.detail(media.id));
+        card._onClick = (media) => this.router.navigate(this.config.routes.detail(media.id));
         card.querySelector('.anime-fav')._onToggle = (id) => {
           const added = this.storage.toggleFavorite(id);
           this.ui.toast(added ? 'Ajouté aux favoris' : 'Retiré des favoris');

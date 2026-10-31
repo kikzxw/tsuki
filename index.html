@@ -94,11 +94,20 @@
         import { App } from './scripts/app.js';
 
         window.addEventListener('DOMContentLoaded', async () => {
-            const storage = new Storage();
-            const cache = new Cache();
-            const anilist = new AniListAPI({ cache });
+            const storage = new Storage({ keys: config.storageKeys });
+            const cache = new Cache(config.cacheTTL);
+            const anilist = new AniListAPI({
+                baseURL: config.anilist.baseURL,
+                perPage: config.anilist.perPage,
+                timeout: config.anilist.timeout,
+                cache,
+            });
             const frembed = new FrembedAPI({ cache });
-            const animedoc = new AnimeDocAPI({ cache });
+            const animedoc = new AnimeDocAPI({
+                baseURL: config.animedoc.baseURL,
+                timeout: config.animedoc.timeout,
+                cache,
+            });
 
             const ui = new UI();
             const router = new Router({
