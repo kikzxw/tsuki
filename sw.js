@@ -27,8 +27,8 @@ const ASSETS = [
   './scripts/pages/lists.js',
   './scripts/pages/history.js',
   './manifest.json',
-  './icon-192.svg',
-  './icon-512.svg',
+  './icons/icon-192.svg',
+  './icons/icon-512.svg',
 ];
 
 self.addEventListener('install', (event) => {

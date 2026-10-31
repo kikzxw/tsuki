@@ -36,6 +36,7 @@ If deploying from **Cloudflare Workers Builds** in the dashboard, add `ANIMEDOC_
 ## Project map
 
 - `index.html`, `styles/main.css`: app shell and design system
+- `icons/`: PWA and browser icons
 - `scripts/pages/`: home, catalogue, search, detail, player, favorites, lists, history, preferences
 - `scripts/storage.js`: local library and settings
 - `src/worker.js`: static assets and server-side catalogue credential relay
