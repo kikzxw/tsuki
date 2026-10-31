@@ -5,9 +5,11 @@
 name = "tsuki"
 main = "src/worker.js"
 compatibility_date = "2024-11-01"
-
-# Déclare le domaine workers.dev
 workers_dev = true
+
+# Assets statiques servis par le worker
+[assets]
+directory = "/"
 
 # Variables d'environnement
 [vars]
