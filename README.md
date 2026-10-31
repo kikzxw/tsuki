@@ -14,14 +14,16 @@ Open `http://localhost:8000`.
 
 ## Deploy
 
-The Worker serves the static site and keeps the catalogue credential server-side. Configure the secret once before deploying:
+The Worker serves the static site and keeps the catalogue credential server-side. To enable playback, configure the secret once in Cloudflare:
 
 ```bash
 npx wrangler secret put ANIMEDOC_API_KEY
 npx wrangler deploy
 ```
 
-For GitHub Actions, add `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `ANIMEDOC_API_KEY` as repository Actions secrets. The browser never receives the catalogue credential. Without it, discovery, metadata, search, lists, and favorites still work; playback sources may be unavailable.
+For GitHub Actions, add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as repository Actions secrets. The browser never receives the catalogue credential. Without the Worker secret, discovery, metadata, search, lists, and favorites still work; playback sources remain unavailable.
+
+If deploying from **Cloudflare Workers Builds** in the dashboard, add `ANIMEDOC_API_KEY` directly to the Worker under **Workers & Pages → tsuki → Settings → Variables and Secrets → Add → Secret**, save, then redeploy. Cloudflare documents this dashboard flow in its [Workers secrets guide](https://developers.cloudflare.com/workers/configuration/secrets/).
 
 ## Main features
 

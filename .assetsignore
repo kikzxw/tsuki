@@ -1,0 +1,7 @@
+# Cloudflare asset uploads must contain only public site files.
+.git/
+.wrangler/
+.github/
+.assetsignore
+*.md
+wrangler.toml
