@@ -1,20 +1,24 @@
 /* ==========================================================================
-   Tsuki — Page Détail d'un anime (catalogue démo embarqué en priorité)
+   Tsuki — Page Détail d'un anime
+   Affichage complet, sélection d'épisodes par tranches & lecture débloquée
    ========================================================================== */
 
 export class DetailPage {
-  constructor({ router, anilist, animedoc, frembed, ui, storage, params = {} } = {}) {
+  constructor({ router, anilist, animedoc, frembed, streaming, ui, storage, params = {} } = {}) {
     this.router = router;
     this.anilist = anilist;
     this.animedoc = animedoc;
     this.frembed = frembed;
+    this.streaming = streaming;
     this.ui = ui;
     this.storage = storage;
     this.params = params;
     this.element = null;
     this.mediaId = null;
     this.media = null;
-    this.videoSources = [];
+    this.activeRangeIndex = 0;
+    this.rangeSize = 25;
+    this.maxDisplayEpisodes = 50;
   }
 
   async render() {
@@ -32,21 +36,33 @@ export class DetailPage {
           <img id="detail-poster" src="" alt="" loading="lazy">
         </div>
         <div class="detail-info">
-          <div id="detail-score"></div>
-          <div id="detail-synopsis"></div>
+          <div class="detail-score" id="detail-score"></div>
+          <div class="detail-synopsis" id="detail-synopsis"></div>
           <div class="detail-tags" id="detail-tags"></div>
           <div class="detail-actions">
-            <button id="detail-watch" class="btn btn-primary btn-large">🎬 Regarder</button>
+            <button id="detail-watch" class="btn btn-primary btn-large">🎬 Regarder l'épisode 1</button>
+            <button id="detail-trailer" class="btn btn-outline" style="display:none;">🍿 Bande-annonce</button>
             <button id="detail-fav" class="btn btn-outline">☆ Favoris</button>
             <button id="detail-share" class="btn btn-outline">🔗 Partager</button>
           </div>
-          <div class="detail-list-action"><select id="detail-list-select" aria-label="Choisir une liste"></select><button id="detail-add-list" class="btn btn-outline">＋ Ajouter à la liste</button></div>
+          <div class="detail-list-action">
+            <select id="detail-list-select" aria-label="Choisir une liste"></select>
+            <button id="detail-add-list" class="btn btn-outline">＋ Ajouter à la liste</button>
+          </div>
         </div>
       </div>
 
-      <section class="detail-section">
-        <h2>Épisodes</h2>
-        <div id="detail-episodes"></div>
+      <section class="detail-section" id="section-episodes">
+        <div class="section-row">
+          <h2>Épisodes disponibles</h2>
+          <div class="episode-quick-jump">
+            <label for="jump-ep-input" class="jump-label">Aller à l'ép. :</label>
+            <input type="number" id="jump-ep-input" min="1" placeholder="N°" class="jump-input">
+            <button id="jump-ep-btn" class="btn btn-outline btn-sm">OK</button>
+          </div>
+        </div>
+        <div id="detail-episode-ranges" class="episode-ranges-tabs"></div>
+        <div id="detail-episodes" class="episodes-grid"></div>
       </section>
 
       <section class="detail-section">
@@ -55,7 +71,7 @@ export class DetailPage {
       </section>
 
       <section class="detail-section">
-        <h2>Staff</h2>
+        <h2>Staff & Production</h2>
         <div id="detail-staff" class="staff-list"></div>
       </section>
 
@@ -70,7 +86,7 @@ export class DetailPage {
 
   async onMount() {
     const btnBack = this.element.querySelector('#detail-back');
-    btnBack.onclick = () => this.router.navigate('/');
+    btnBack.onclick = () => window.history.back();
 
     const mediaId = this.params.id;
     if (!mediaId) {
@@ -89,101 +105,133 @@ export class DetailPage {
     const synopsisEl = this.element.querySelector('#detail-synopsis');
     const tagsEl = this.element.querySelector('#detail-tags');
     const episodesEl = this.element.querySelector('#detail-episodes');
+    const rangesEl = this.element.querySelector('#detail-episode-ranges');
     const charsEl = this.element.querySelector('#detail-characters');
     const staffEl = this.element.querySelector('#detail-staff');
     const linksEl = this.element.querySelector('#detail-links');
     const watchBtn = this.element.querySelector('#detail-watch');
+    const trailerBtn = this.element.querySelector('#detail-trailer');
     const favBtn = this.element.querySelector('#detail-fav');
 
     poster.src = '';
     titleEl.textContent = 'Chargement…';
     episodesEl.innerHTML = '';
+    rangesEl.innerHTML = '';
     charsEl.innerHTML = '';
     staffEl.innerHTML = '';
     linksEl.innerHTML = '';
 
     this.media = null;
-    this.videoSources = [];
 
-    // Reuse the full metadata snapshot first, then the bundled fallback catalogue.
+    // 1. Snapshot local ou catalogue démo
     try {
       this.media = this.storage.getMedia(this.mediaId);
-      if (this.media) this.videoSources = this._extractVideoSources(this.media);
       const { getDemoAnime } = await import('../demo-data.js');
       this.media ||= getDemoAnime(this.mediaId);
     } catch (e) {
-      console.warn('Demo data indisponible', e);
+      console.warn('Données locales non trouvées', e);
     }
 
-    // Fetch current metadata for any item not already available locally.
+    // 2. Récupération distante AniList
     if (!this.media) {
       try {
         this.media = await this.anilist.getMedia(this.mediaId);
       } catch (e) {
-        console.warn('Fiche anime indisponible', e);
+        console.warn('Fiche anime distante indisponible', e);
       }
     }
 
-    if (this.media && !this.videoSources.length) {
-      try {
-        const sources = await this.animedoc.getMediaSources(this.mediaId);
-        this.videoSources = this._extractVideoSources(sources);
-      } catch (e) {
-        console.info('Lecture non disponible pour cette fiche.');
-      }
+    if (!this.media) {
+      titleEl.textContent = 'Anime introuvable';
+      return;
     }
-    if (!this.media) { titleEl.textContent = 'Anime introuvable'; return; }
     this.storage.saveMedia(this.media);
 
-    // Rendu des métadonnées
+    // Titre & Bannière
     titleEl.textContent = this.media.title;
     if (this.media.bannerImage) {
       this.element.style.setProperty('--detail-banner', `url("${this.media.bannerImage}")`);
       this.element.classList.add('has-detail-banner');
     }
+
+    // Affiche
     poster.src = this.media.coverImage || this.media.coverImageMedium || this.ui.posterFallback(this.media.title, 620, 900);
-    poster.onerror = () => { poster.onerror = null; poster.src = this.ui.posterFallback(this.media.title, 620, 900); };
+    poster.onerror = () => {
+      poster.onerror = null;
+      poster.src = this.ui.posterFallback(this.media.title, 620, 900);
+    };
     poster.alt = `Affiche de ${this.media.title}`;
 
+    // Métadonnées
     const year = this.media.startDate ? this.media.startDate.slice(0, 4) : (this.media.year || '');
-    const metaParts = [this.media.format, this.media.status, year, this.ui.formatDuration(this.media.duration)].filter(Boolean);
+    const metaParts = [
+      this.media.format,
+      this.media.status === 'FINISHED' ? 'Terminé' : (this.media.status === 'RELEASING' ? 'En cours' : this.media.status),
+      year,
+      this.ui.formatDuration(this.media.duration),
+      this.media.episodes ? `${this.media.episodes} épisode(s)` : (this.media.format === 'MOVIE' ? 'Film' : 'Épisodes en cours'),
+    ].filter(Boolean);
     metaEl.innerHTML = metaParts.join(' · ');
 
+    // Score & Popularité
     scoreEl.innerHTML = `
       <span class="score-badge">${this.ui.formatScore(this.media.averageScore)} / 10</span>
       <span class="score-pop">Popularité : ${Math.round(this.media.popularity || 0)}</span>
     `;
 
+    // Synopsis
     synopsisEl.innerHTML = this.media.description
       ? `<p>${this.ui.escapeHtml(this.media.description)}</p>`
       : '<p>Aucun synopsis disponible.</p>';
 
+    // Tags
     const tags = [...(this.media.genres || []), ...(this.media.studios?.slice(0, 3) || [])];
     tagsEl.innerHTML = tags.map((t) => `<span class="tag">${this.ui.escapeHtml(t)}</span>`).join('');
 
+    // Bouton Regarder : TOUJOURS ACTIF & DÉBLOQUÉ
+    const isMovie = this.media.format === 'MOVIE';
+    watchBtn.disabled = false;
+    watchBtn.textContent = isMovie ? '🎬 Lancer le film' : '🎬 Regarder l\'épisode 1';
+    watchBtn.title = 'Accéder au lecteur vidéo';
+    watchBtn.onclick = () => {
+      this.router.navigate(
+        `/lecteur?animeId=${encodeURIComponent(this.mediaId)}&ep=1&title=${encodeURIComponent(this.media.title)}&cover=${encodeURIComponent(this.media.coverImage || '')}`
+      );
+    };
+
+    // Bouton Trailer YouTube
+    if (this.media.trailer && this.media.trailer.id) {
+      trailerBtn.style.display = 'inline-flex';
+      trailerBtn.onclick = () => {
+        this.ui.openModal(`
+          <div class="trailer-modal-container">
+            <h3 style="margin-bottom:1rem;font-size:1.2rem;">${this.ui.escapeHtml(this.media.title)} — Bande-annonce</h3>
+            <div class="video-responsive-embed">
+              <iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(this.media.trailer.id)}?autoplay=1"
+                      allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+            </div>
+          </div>
+        `);
+      };
+    }
+
     // Favori
     const isFav = this.storage.isFavorite(this.media.id);
-    favBtn.textContent = isFav ? '★ Retirer des favoris' : '☆ Ajouter aux favoris';
+    favBtn.textContent = isFav ? '★ Retirer des favoris' : '☆ Favoris';
     favBtn.onclick = () => {
       const added = this.storage.toggleFavorite(this.media.id);
-      favBtn.textContent = added ? '★ Retirer des favoris' : '☆ Ajouter aux favoris';
+      favBtn.textContent = added ? '★ Retirer des favoris' : '☆ Favoris';
       this.ui.toast(added ? 'Ajouté aux favoris' : 'Retiré des favoris');
     };
 
-    // Playback is only enabled for an actual playable source.
-    const hasVideo = this.videoSources.length > 0;
-    watchBtn.disabled = !hasVideo;
-    watchBtn.title = hasVideo ? 'Lancer la lecture' : 'Lecture indisponible pour le moment';
-    watchBtn.onclick = () => {
-      if (hasVideo) {
-        this.router.navigate(`/lecteur?animeId=${encodeURIComponent(this.mediaId)}&title=${encodeURIComponent(this.media.title)}&cover=${encodeURIComponent(this.media.coverImage || '')}`);
-      }
-    };
-
+    // Listes
     const listSelect = this.element.querySelector('#detail-list-select');
     const lists = this.storage.getLists();
     listSelect.replaceChildren(...Object.keys(lists).map((name) => {
-      const option = document.createElement('option'); option.value = name; option.textContent = name; return option;
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      return option;
     }));
     this.element.querySelector('#detail-add-list').onclick = () => {
       this.storage.addToList(listSelect.value, this.media);
@@ -194,14 +242,14 @@ export class DetailPage {
     this.element.querySelector('#detail-share').onclick = () => {
       const url = window.location.href;
       if (navigator.share) {
-        navigator.share({ title: this.media.title, url });
+        navigator.share({ title: this.media.title, url }).catch(() => {});
       } else {
-        navigator.clipboard.writeText(url).then(() => this.ui.toast('Lien copié'));
+        navigator.clipboard.writeText(url).then(() => this.ui.toast('Lien copié dans le presse-papier !'));
       }
     };
 
-    // Épisodes
-    this._renderEpisodes(episodesEl, this.media.episodes || 0);
+    // Rendu des Épisodes
+    this._renderEpisodesNavigator(this.media);
 
     // Personnages / Staff
     this._renderList(charsEl, this.media.characters || [], 'personnage');
@@ -211,81 +259,93 @@ export class DetailPage {
     this._renderLinks(linksEl, this.media.externalLinks || []);
   }
 
-  _normalizeAnimedocDetail(details) {
-    const d = details?.data || details || {};
-    if (!d && !details.title) return null;
-    return {
-      id: String(d.id || details.id || this.mediaId),
-      title: d.title || details.title || 'Sans titre',
-      titleRomaji: d.titleRomaji || details.titleRomaji,
-      titleEnglish: d.titleEnglish || details.titleEnglish,
-      description: d.description || details.description || null,
-      format: d.format || details.format || 'TV',
-      status: d.status || details.status || null,
-      episodes: d.episodes || details.episodes || d.episodeCount || null,
-      duration: d.duration || details.duration || null,
-      averageScore: d.score || d.averageScore || details.score || details.averageScore || null,
-      popularity: d.popularity || details.popularity || 0,
-      coverImage: d.coverImage || d.poster || details.coverImage || details.poster || null,
-      bannerImage: d.bannerImage || details.bannerImage || null,
-      genres: d.genres || details.genres || [],
-      studios: d.studios || details.studios || [],
-      characters: (d.characters || details.characters || []).map((c) => ({
-        id: String(c.id), name: c.name || c.fullName, image: c.image || c.coverImage, role: c.role || null,
-      })),
-      staff: (d.staff || details.staff || []).map((s) => ({
-        id: String(s.id), name: s.name || s.fullName, image: s.image || s.coverImage, role: s.role || null,
-      })),
-      externalLinks: d.externalLinks || details.externalLinks || [],
-      startDate: d.startDate || details.startDate || null,
-      endDate: d.endDate || details.endDate || null,
-      source: 'animedoc',
-    };
-  }
+  _renderEpisodesNavigator(media) {
+    const container = this.element.querySelector('#detail-episodes');
+    const rangesContainer = this.element.querySelector('#detail-episode-ranges');
+    const jumpInput = this.element.querySelector('#jump-ep-input');
+    const jumpBtn = this.element.querySelector('#jump-ep-btn');
 
-  _extractVideoSources(sources) {
-    const out = [];
-    const data = sources?.data || sources || {};
-    const list = data.sources || data.mediaSources || data.urls || [];
-    list.forEach((s) => {
-      if (s.url) {
-        out.push({
-          url: s.url,
-          quality: s.quality || s.resolution || 'auto',
-          type: s.type || s.mime || (s.url.includes('.m3u8') ? 'application/vnd.apple.mpegurl' : 'video/mp4'),
-          isM3U8: s.url.includes('.m3u8'),
-        });
-      }
-    });
-    return out;
-  }
-
-  _renderEpisodes(container, total) {
     container.innerHTML = '';
-    if (!total || total <= 0) {
-      container.innerHTML = '<p class="empty">Nombre d\'épisodes non renseigné.</p>';
+    rangesContainer.innerHTML = '';
+
+    const isMovie = media.format === 'MOVIE';
+    if (isMovie) {
+      const movieBtn = document.createElement('button');
+      movieBtn.className = 'btn btn-primary btn-large movie-play-card';
+      movieBtn.innerHTML = `<span>▶</span> <div><strong>Film Complet</strong><small>Clique pour lancer le lecteur</small></div>`;
+      movieBtn.onclick = () => {
+        this.router.navigate(
+          `/lecteur?animeId=${encodeURIComponent(media.id)}&ep=1&title=${encodeURIComponent(media.title)}&cover=${encodeURIComponent(media.coverImage || '')}`
+        );
+      };
+      container.appendChild(movieBtn);
       return;
     }
-    const limit = Math.min(total, 50);
+
+    const total = media.episodes || this.maxDisplayEpisodes;
+    const watchedSet = this.storage.getWatchedEpisodes(media.id);
+
+    // Saut direct
+    const doJump = () => {
+      const epNum = parseInt(jumpInput.value, 10);
+      if (epNum > 0) {
+        this.router.navigate(
+          `/lecteur?animeId=${encodeURIComponent(media.id)}&ep=${epNum}&title=${encodeURIComponent(media.title)}&cover=${encodeURIComponent(media.coverImage || '')}`
+        );
+      }
+    };
+    jumpBtn.onclick = doJump;
+    jumpInput.onkeydown = (e) => { if (e.key === 'Enter') doJump(); };
+
+    // Si plus de 25 épisodes, génère des tranches d'onglets
+    if (total > this.rangeSize) {
+      const numRanges = Math.ceil(total / this.rangeSize);
+      for (let r = 0; r < numRanges; r++) {
+        const start = r * this.rangeSize + 1;
+        const end = Math.min((r + 1) * this.rangeSize, total);
+        const tabBtn = document.createElement('button');
+        tabBtn.className = `range-tab-btn ${r === this.activeRangeIndex ? 'active' : ''}`;
+        tabBtn.textContent = `Ép. ${start} – ${end}`;
+        tabBtn.onclick = () => {
+          this.activeRangeIndex = r;
+          this._renderEpisodesNavigator(media);
+        };
+        rangesContainer.appendChild(tabBtn);
+      }
+    }
+
+    const rangeStart = this.activeRangeIndex * this.rangeSize + 1;
+    const rangeEnd = Math.min((this.activeRangeIndex + 1) * this.rangeSize, total);
+
     const frag = document.createDocumentFragment();
-    for (let i = 1; i <= limit; i++) {
+    for (let i = rangeStart; i <= rangeEnd; i++) {
       const btn = document.createElement('button');
-      btn.className = 'episode-btn';
-      btn.textContent = `Ép. ${i}`;
-      btn.disabled = this.videoSources.length === 0;
-      btn.title = btn.disabled ? 'Lecture indisponible pour cet anime' : `Lire l'épisode ${i}`;
+      const isWatched = watchedSet.has(i);
+      btn.className = `episode-btn ${isWatched ? 'watched' : ''}`;
+      btn.innerHTML = `
+        <span class="ep-num">Ép. ${i}</span>
+        ${isWatched ? '<span class="ep-badge-watched" title="Déjà visionné">✓ Vu</span>' : ''}
+      `;
+      btn.title = `Regarder l'épisode ${i}`;
       btn.onclick = () => {
-        if (!this.videoSources.length) return;
-        this.router.navigate(`/lecteur?animeId=${encodeURIComponent(this.mediaId)}&ep=${i}&title=${encodeURIComponent(this.media.title)}&cover=${encodeURIComponent(this.media.coverImage || '')}`);
+        this.router.navigate(
+          `/lecteur?animeId=${encodeURIComponent(media.id)}&ep=${i}&title=${encodeURIComponent(media.title)}&cover=${encodeURIComponent(media.coverImage || '')}`
+        );
       };
       frag.appendChild(btn);
     }
     container.appendChild(frag);
-    if (total > limit) {
-      const more = document.createElement('p');
-      more.className = 'empty';
-      more.textContent = `…et ${total - limit} autre(s) épisode(s).`;
-      container.appendChild(more);
+
+    // Si le nombre total n'est pas renseigné (anime en cours)
+    if (!media.episodes) {
+      const moreBtn = document.createElement('button');
+      moreBtn.className = 'btn btn-outline btn-load-more-episodes';
+      moreBtn.textContent = '＋ Charger 25 épisodes de plus';
+      moreBtn.onclick = () => {
+        this.maxDisplayEpisodes += 25;
+        this._renderEpisodesNavigator(media);
+      };
+      container.appendChild(moreBtn);
     }
   }
 
@@ -295,10 +355,12 @@ export class DetailPage {
       container.innerHTML = '<p class="empty">Non renseigné.</p>';
       return;
     }
-    items.forEach((item) => {
+    items.slice(0, 15).forEach((item) => {
       const card = document.createElement('div');
       card.className = 'credit-card';
-      const img = item.image ? `<img src="${this.ui.escapeHtml(item.image)}" alt="" loading="lazy">` : `<div class="credit-avatar">?</div>`;
+      const img = item.image
+        ? `<img src="${this.ui.escapeHtml(item.image)}" alt="" loading="lazy">`
+        : `<div class="credit-avatar">${this.ui.escapeHtml((item.name || '?').slice(0, 1))}</div>`;
       card.innerHTML = `
         ${img}
         <div class="credit-info">
@@ -307,14 +369,18 @@ export class DetailPage {
         </div>
       `;
       const creditImage = card.querySelector('img');
-      if (creditImage) creditImage.onerror = () => { creditImage.outerHTML = `<div class="credit-avatar">${this.ui.escapeHtml((item.name || '?').slice(0, 1))}</div>`; };
+      if (creditImage) {
+        creditImage.onerror = () => {
+          creditImage.outerHTML = `<div class="credit-avatar">${this.ui.escapeHtml((item.name || '?').slice(0, 1))}</div>`;
+        };
+      }
       container.appendChild(card);
     });
   }
 
   _renderLinks(container, links) {
     container.innerHTML = '';
-    const relevant = links.filter((l) => ['TMDB', 'IMDb', 'AniList', 'Official', 'Wikipedia'].includes(l.site));
+    const relevant = (links || []).filter((l) => ['TMDB', 'IMDb', 'AniList', 'Crunchyroll', 'Official Site', 'Wikipedia'].includes(l.site));
     if (relevant.length === 0) {
       container.innerHTML = '<p class="empty">Aucun lien externe.</p>';
       return;

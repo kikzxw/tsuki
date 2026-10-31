@@ -77,7 +77,29 @@ export class HomePage {
     const hero = this.element.querySelector('#home-hero');
     const image = media.bannerImage || media.coverImage;
     hero.style.setProperty('--hero-image', `url("${image}")`);
-    hero.innerHTML = `<div class="hero-copy"><span class="hero-kicker">À DÉCOUVRIR EN CE MOMENT</span><h2>${this.ui.escapeHtml(media.title)}</h2><p>${this.ui.escapeHtml((media.description || '').slice(0, 230))}${media.description?.length > 230 ? '…' : ''}</p><div class="hero-meta"><span>★ ${((media.averageScore || 0) / 10).toFixed(1)}</span><span>${this.ui.escapeHtml(media.format || 'ANIME')}</span><span>${media.episodes || '—'} épisodes</span></div><a class="btn btn-primary" href="#/anime/${encodeURIComponent(media.id)}">Voir la fiche <span>↗</span></a></div><div class="hero-art"><img src="${this.ui.escapeHtml(media.coverImage || '')}" alt="Affiche de ${this.ui.escapeHtml(media.title)}"></div>`;
+    hero.innerHTML = `
+      <div class="hero-copy">
+        <span class="hero-kicker">À DÉCOUVRIR EN CE MOMENT</span>
+        <h2>${this.ui.escapeHtml(media.title)}</h2>
+        <p>${this.ui.escapeHtml((media.description || '').slice(0, 230))}${media.description?.length > 230 ? '…' : ''}</p>
+        <div class="hero-meta">
+          <span>★ ${((media.averageScore || 0) / 10).toFixed(1)} / 10</span>
+          <span>${this.ui.escapeHtml(media.format || 'ANIME')}</span>
+          <span>${media.episodes ? `${media.episodes} épisodes` : 'En cours'}</span>
+        </div>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#/lecteur?animeId=${encodeURIComponent(media.id)}&ep=1&title=${encodeURIComponent(media.title)}&cover=${encodeURIComponent(media.coverImage || '')}">
+            🎬 Regarder l'épisode 1
+          </a>
+          <a class="btn btn-outline" href="#/anime/${encodeURIComponent(media.id)}">
+            Voir la fiche <span>↗</span>
+          </a>
+        </div>
+      </div>
+      <div class="hero-art">
+        <img src="${this.ui.escapeHtml(media.coverImage || '')}" alt="Affiche de ${this.ui.escapeHtml(media.title)}">
+      </div>
+    `;
     const cover = hero.querySelector('.hero-art img');
     cover.onerror = () => { cover.onerror = null; cover.src = this.ui.posterFallback(media.title); };
   }
@@ -104,11 +126,14 @@ export class HomePage {
           isFavorite: this.storage?.isFavorite(m.id) || false,
         });
         card._onClick = (media) => this.router.navigate(this.config.routes.detail(media.id));
-        card.querySelector('.anime-fav')._onToggle = (id) => {
-          const added = this.storage.toggleFavorite(id);
-          this.ui.toast(added ? 'Ajouté aux favoris' : 'Retiré des favoris');
-          return added;
-        };
+        const favBtn = card.querySelector('.anime-fav');
+        if (favBtn) {
+          favBtn._onToggle = (id) => {
+            const added = this.storage.toggleFavorite(id);
+            this.ui.toast(added ? 'Ajouté aux favoris' : 'Retiré des favoris');
+            return added;
+          };
+        }
         container.appendChild(card);
       });
       return data;
@@ -121,7 +146,8 @@ export class HomePage {
         this.storage.saveMedia(media);
         const card = this.ui.renderCard(media, { isFavorite: this.storage.isFavorite(media.id) });
         card._onClick = (item) => this.router.navigate(`/anime/${item.id}`);
-        card.querySelector('.anime-fav')._onToggle = (id) => this.storage.toggleFavorite(id);
+        const favBtn = card.querySelector('.anime-fav');
+        if (favBtn) favBtn._onToggle = (id) => this.storage.toggleFavorite(id);
         container.append(card);
       });
       return fallback;
@@ -135,7 +161,8 @@ export class HomePage {
     items.forEach((media) => {
       const card = this.ui.renderCard(media, { isFavorite: this.storage.isFavorite(media.id) });
       card._onClick = (item) => this.router.navigate(`/anime/${item.id}`);
-      card.querySelector('.anime-fav')._onToggle = (id) => this.storage.toggleFavorite(id);
+      const favBtn = card.querySelector('.anime-fav');
+      if (favBtn) favBtn._onToggle = (id) => this.storage.toggleFavorite(id);
       container.append(card);
     });
   }

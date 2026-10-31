@@ -1,28 +1,38 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <meta name="description" content="Tsuki — votre bibliothèque d'anime personnelle. Découvrez, classez et retrouvez vos séries préférées.">
+    <meta name="description" content="Tsuki — votre bibliothèque d'anime personnelle. Découvrez, classez et regardez vos séries et films préférés.">
     <meta name="theme-color" content="#100b12">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg">
     <link rel="apple-touch-icon" href="/icons/icon-192.svg">
     <link rel="manifest" href="/manifest.json">
-    <title>TSUKI — Anime Library</title>
+    <title>TSUKI — Anime Library & Streaming</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- hls.js épinglé pour la lecture HLS (.m3u8) -->
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- hls.js pour la lecture HLS (.m3u8) -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
 </head>
 <body>
+    <!-- Ambiance Sakura subtile animée -->
+    <div class="sakura-petals-bg" aria-hidden="true">
+        <span class="petal p1">🌸</span>
+        <span class="petal p2">🌸</span>
+        <span class="petal p3">🌸</span>
+        <span class="petal p4">🌸</span>
+        <span class="petal p5">🌸</span>
+        <span class="petal p6">🌸</span>
+    </div>
+
     <!-- Lien d'évitement clavier -->
     <a href="#main" class="skip-link">Aller au contenu principal</a>
 
-    <!-- Navigation principale -->
+    <!-- Navigation principale desktop & tablette -->
     <header class="shell-header">
         <div class="header-inner">
             <a href="#/" class="logo" aria-label="Accueil Tsuki">
@@ -32,14 +42,14 @@
 
             <form class="shell-search" role="search" aria-label="Recherche rapide">
                 <span class="search-symbol" aria-hidden="true">⌕</span>
-                <input type="search" id="shellSearchInput" placeholder="Un titre, une saison, une humeur…" autocomplete="off" results="0" spellcheck="false">
+                <input type="search" id="shellSearchInput" placeholder="Titre d'un anime, film, saison…" autocomplete="off" results="0" spellcheck="false">
                 <kbd>↵</kbd>
             </form>
 
             <div class="header-actions">
-                <a href="#/historique" class="icon-btn" aria-label="Historique">◷</a>
-                <a href="#/favoris" class="icon-btn fav-btn" aria-label="Favoris" aria-expanded="false">♡<span id="shellFavCount" class="visually-hidden">0 favoris</span></a>
-                <button id="themeToggle" type="button" class="icon-btn" aria-label="Changer de thème">☼</button>
+                <a href="#/historique" class="icon-btn" aria-label="Historique" title="Récemment vus">◷</a>
+                <a href="#/favoris" class="icon-btn fav-btn" aria-label="Favoris" title="Mes favoris">♡<span id="shellFavCount" class="visually-hidden">0 favoris</span></a>
+                <button id="themeToggle" type="button" class="icon-btn" aria-label="Changer de thème" title="Changer de thème">☼</button>
             </div>
         </div>
         <nav class="primary-nav" aria-label="Navigation principale">
@@ -55,6 +65,30 @@
         <!-- Router outlet : le contenu des pages est injecté ici -->
         <div id="router-outlet"></div>
     </main>
+
+    <!-- Barre de navigation mobile inférieure (Sticky Bottom Nav) -->
+    <nav class="bottom-nav" aria-label="Navigation mobile">
+        <a href="#/" data-nav="/" class="bottom-nav-item">
+            <span class="b-icon">🌸</span>
+            <span class="b-text">Accueil</span>
+        </a>
+        <a href="#/decouvrir" data-nav="/decouvrir" class="bottom-nav-item">
+            <span class="b-icon">📑</span>
+            <span class="b-text">Catalogue</span>
+        </a>
+        <a href="#/recherche" data-nav="/recherche" class="bottom-nav-item">
+            <span class="b-icon">🔍</span>
+            <span class="b-text">Recherche</span>
+        </a>
+        <a href="#/favoris" data-nav="/favoris" class="bottom-nav-item">
+            <span class="b-icon">♡</span>
+            <span class="b-text">Favoris</span>
+        </a>
+        <a href="#/historique" data-nav="/historique" class="bottom-nav-item">
+            <span class="b-icon">🕒</span>
+            <span class="b-text">Historique</span>
+        </a>
+    </nav>
 
     <footer class="shell-footer">
         <div class="footer-inner">
@@ -80,6 +114,7 @@
         import { AniListAPI } from './scripts/api/anilist.js';
         import { FrembedAPI } from './scripts/api/frembed.js';
         import { AnimeDocAPI } from './scripts/api/animedoc.js';
+        import { StreamingEngine } from './scripts/api/streaming.js';
         import { Router } from './scripts/router.js';
         import { UI } from './scripts/ui.js';
         import { HomePage } from './scripts/pages/home.js';
@@ -92,6 +127,36 @@
         import { ListsPage } from './scripts/pages/lists.js';
         import { HistoryPage } from './scripts/pages/history.js';
         import { App } from './scripts/app.js';
+
+        // Pages statiques simples
+        class AboutPage {
+            constructor({ ui }) { this.ui = ui; }
+            render() { return this.ui.renderStatic('À propos de Tsuki', `
+                <div class="static-card">
+                    <p><strong>Tsuki</strong> est une plateforme et bibliothèque d'anime nouvelle génération pensée pour offrir une expérience fluide, rapide et esthétique.</p>
+                    <p>Elle intègre un lecteur multi-serveurs avec prise en charge directe de flux VF et VOSTFR, le suivi précis des épisodes visionnés et la gestion complète de listes personnalisées.</p>
+                    <p>Toutes vos données (favoris, historique, progression d'épisodes et listes) sont conservées en toute confidentialité sur votre appareil.</p>
+                </div>
+            `); }
+        }
+        class PrivacyPage {
+            constructor({ ui }) { this.ui = ui; }
+            render() { return this.ui.renderStatic('Confidentialité & Données', `
+                <div class="static-card">
+                    <p>Aucune donnée personnelle n'est pistée ni transmise à des tiers. Vos favoris, épisodes vus et préférences restent stockés localement dans votre navigateur.</p>
+                    <p>Les fiches artistiques proviennent de l'API publique ouverte AniList.</p>
+                </div>
+            `); }
+        }
+        class TermsPage {
+            constructor({ ui }) { this.ui = ui; }
+            render() { return this.ui.renderStatic('Conditions d\'utilisation', `
+                <div class="static-card">
+                    <p>Tsuki est une interface utilisateur open-source pour explorer et organiser vos animés.</p>
+                    <p>Les métadonnées et affiches sont fournies à titre informatif par des catalogues ouverts.</p>
+                </div>
+            `); }
+        }
 
         window.addEventListener('DOMContentLoaded', async () => {
             const storage = new Storage({ keys: config.storageKeys });
@@ -108,11 +173,12 @@
                 timeout: config.animedoc.timeout,
                 cache,
             });
+            const streaming = new StreamingEngine({ frembed, animedoc });
 
             const ui = new UI();
             const router = new Router({
                 outlet: document.getElementById('router-outlet'),
-                dependencies: { storage, cache, anilist, frembed, animedoc, ui, config },
+                dependencies: { storage, cache, anilist, frembed, animedoc, streaming, ui, config },
             });
 
             // Enregistrer les pages
@@ -131,7 +197,7 @@
             router.register('/conditions', TermsPage);
 
             const app = new App({
-                storage, cache, anilist, frembed, animedoc, ui, router, config,
+                storage, cache, anilist, frembed, animedoc, streaming, ui, router, config,
                 elements: {
                     searchInput: document.getElementById('shellSearchInput'),
                     searchForm: document.querySelector('.shell-search'),
@@ -147,36 +213,16 @@
                 }
             });
 
+            // Initialiser l'application
             await app.init();
 
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js').catch((error) => {
-                console.warn('Service worker indisponible', error);
-            });
-        }
+            // Enregistrer le Service Worker en toute sécurité
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./sw.js').catch((error) => {
+                    console.info('Service worker non disponible en local', error);
+                });
+            }
         });
-
-        // Pages statiques simples
-        class AboutPage {
-            constructor({ ui }) { this.ui = ui; }
-            render() { return this.ui.renderStatic('À propos', `
-                <p><strong>Tsuki</strong> est une bibliothèque personnelle pour découvrir de nouvelles séries, garder ses coups de cœur et reprendre son visionnage.</p>
-                <p>Les listes, favoris et l'historique sont conservés sur cet appareil. Aucune création de compte n'est nécessaire.</p>
-            `); }
-        }
-        class PrivacyPage {
-            constructor({ ui }) { this.ui = ui; }
-            render() { return this.ui.renderStatic('Confidentialité', `
-                <p>Aucune donnée personnelle n'est collectée. Tes favoris, listes, préférences et ton historique restent dans le stockage local de ton navigateur.</p>
-                <p>Les fiches et affiches sont chargées depuis des services de catalogue externes.</p>
-            `); }
-        }
-        class TermsPage {
-            constructor({ ui }) { this.ui = ui; }
-            render() { return this.ui.renderStatic('Conditions', `
-                <p>Les informations de catalogue et la disponibilité de la lecture dépendent de services externes.</p>
-            `); }
-        }
     </script>
 </body>
 </html>

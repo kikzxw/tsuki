@@ -13,6 +13,7 @@ export class Storage {
       lists: 'tsuki_lists',
       media: 'tsuki_media',
       catalogueLayout: 'tsuki_catalog_layout',
+      watched: 'tsuki_watched',
       ...keys,
     };
     this.ready = Promise.resolve();
@@ -107,7 +108,35 @@ export class Storage {
     this.saveLists(lists);
   }
 
-  // --- Historique de visionnage ---
+  // --- Historique de visionnage & Épisodes vus ---
+  getWatchedEpisodes(animeId) {
+    try {
+      const data = JSON.parse(this._read(this.keys.watched) || '{}');
+      return new Set(data[String(animeId)] || []);
+    } catch (_) {
+      return new Set();
+    }
+  }
+
+  markEpisodeWatched(animeId, episode) {
+    try {
+      const data = JSON.parse(this._read(this.keys.watched) || '{}');
+      const key = String(animeId);
+      data[key] = data[key] || [];
+      const epNum = Number(episode);
+      if (!data[key].includes(epNum)) {
+        data[key].push(epNum);
+        this._write(this.keys.watched, JSON.stringify(data));
+      }
+    } catch (e) {
+      console.warn('Impossible d\'enregistrer l\'épisode vu', e);
+    }
+  }
+
+  isEpisodeWatched(animeId, episode) {
+    return this.getWatchedEpisodes(animeId).has(Number(episode));
+  }
+
   getHistory() {
     try { return JSON.parse(this._read(this.keys.history) || '[]'); } catch (e) { return []; }
   }
@@ -131,7 +160,7 @@ export class Storage {
 
   // --- Nettoyage des données locales ---
   clearLocalData() {
-    [this.keys.favorites, this.keys.history, this.keys.lists, this.keys.media].forEach((key) => this._remove(key));
+    [this.keys.favorites, this.keys.history, this.keys.lists, this.keys.media, this.keys.watched].forEach((key) => this._remove(key));
     window.dispatchEvent(new CustomEvent('tsuki:favorites-changed'));
   }
 }

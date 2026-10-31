@@ -133,11 +133,14 @@ export class DiscoverPage {
           isFavorite: this.storage.isFavorite(m.id),
         });
         card._onClick = (media) => this.router.navigate(this.config.routes.detail(media.id));
-        card.querySelector('.anime-fav')._onToggle = (id) => {
-          const added = this.storage.toggleFavorite(id);
-          this.ui.toast(added ? 'Ajouté aux favoris' : 'Retiré des favoris');
-          return added;
-        };
+        const favBtn = card.querySelector('.anime-fav');
+        if (favBtn) {
+          favBtn._onToggle = (id) => {
+            const added = this.storage.toggleFavorite(id);
+            this.ui.toast(added ? 'Ajouté aux favoris' : 'Retiré des favoris');
+            return added;
+          };
+        }
         container.appendChild(card);
       });
       this._renderPagination(pagination, data.pageInfo);

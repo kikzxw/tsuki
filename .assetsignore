@@ -5,3 +5,4 @@
 .assetsignore
 *.md
 wrangler.toml
+package.json

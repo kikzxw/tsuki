@@ -9,6 +9,7 @@ export class Cache {
   }
 
   _key(namespace, ...args) {
+    if (args.length === 0) return String(namespace);
     return `${namespace}:${JSON.stringify(args)}`;
   }
 
@@ -24,7 +25,7 @@ export class Cache {
   }
 
   set(namespace, value, ...args) {
-    const k = this._key(namespace, ...args);
+    const k = args.length === 0 ? String(namespace) : this._key(namespace, ...args);
     this.store.set(k, { value, expiry: Date.now() + this.ttl });
   }
 

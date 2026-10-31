@@ -81,7 +81,7 @@ export class UI {
     card.setAttribute('role', 'gridcell');
     card.setAttribute('aria-label', media.title || 'Anime');
 
-    const score = media.averageScore ? `<span class="badge badge--score">${media.averageScore}/100</span>` : '';
+    const score = media.averageScore ? `<span class="badge badge--score">★ ${(media.averageScore / 10).toFixed(1)}</span>` : '';
     const year = media.startDate ? media.startDate.slice(0, 4) : '';
     const format = media.format || '';
     const image = media.coverImage || media.coverImageMedium || '';

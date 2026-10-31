@@ -1,5 +1,6 @@
 /* ==========================================================================
-   Tsuki — Page Recherche (catalogue démo embarqué en priorité)
+   Tsuki — Page Recherche
+   Recherche en direct, suggestions rapides & navigation fluide
    ========================================================================== */
 
 export class SearchPage {
@@ -22,13 +23,25 @@ export class SearchPage {
     section.className = 'page search-page';
     section.innerHTML = `
       <header class="page-header">
+        <p class="eyebrow">EXPLORATION INSTANTANÉE</p>
         <h1>Recherche</h1>
-        <p class="page-subtitle">Trouvez un anime par titre.</p>
+        <p class="page-subtitle">Trouvez un anime, film ou franchise en un instant.</p>
       </header>
 
       <div class="search-toolbar">
-        <input type="search" id="search-input" placeholder="Ex: Naruto, Attack on Titan…" autocomplete="off" results="0" spellcheck="false">
+        <input type="search" id="search-input" placeholder="Ex: Attack on Titan, Demon Slayer, Solo Leveling…" autocomplete="off" results="0" spellcheck="false">
         <button id="search-btn" class="btn btn-primary">Chercher</button>
+      </div>
+
+      <!-- Suggestions populaires -->
+      <div class="search-suggestions" id="search-suggestions">
+        <span class="suggestions-label">Suggestions :</span>
+        <button class="chip-suggestion" data-query="Attack on Titan">Attack on Titan</button>
+        <button class="chip-suggestion" data-query="Demon Slayer">Demon Slayer</button>
+        <button class="chip-suggestion" data-query="Jujutsu Kaisen">Jujutsu Kaisen</button>
+        <button class="chip-suggestion" data-query="One Piece">One Piece</button>
+        <button class="chip-suggestion" data-query="Solo Leveling">Solo Leveling</button>
+        <button class="chip-suggestion" data-query="Frieren">Frieren</button>
       </div>
 
       <div id="search-info" class="search-info" aria-live="polite"></div>
@@ -55,15 +68,32 @@ export class SearchPage {
     btn.onclick = () => this._doSearch(input.value, true);
     input.addEventListener('input', (e) => {
       clearTimeout(this.timer);
-      this.timer = setTimeout(() => this._doSearch(e.target.value), this.config.debounceMs);
+      this.timer = setTimeout(() => this._doSearch(e.target.value), this.config.debounceMs || 300);
     });
-    input.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); this._doSearch(input.value, true); } });
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        this._doSearch(input.value, true);
+      }
+    });
+
+    // Clic sur les suggestions
+    this.element.querySelectorAll('.chip-suggestion').forEach((chip) => {
+      chip.onclick = () => {
+        const q = chip.dataset.query;
+        input.value = q;
+        this._doSearch(q, true);
+      };
+    });
   }
 
   _doSearch(q, navigate = false) {
     this.query = (q || '').trim();
     this.page = 1;
-    if (navigate) { this.router.navigate(`/recherche?q=${encodeURIComponent(this.query)}`); return; }
+    if (navigate) {
+      this.router.navigate(`/recherche?q=${encodeURIComponent(this.query)}`);
+      return;
+    }
     this.load();
   }
 
@@ -79,7 +109,7 @@ export class SearchPage {
 
     if (!this.query) {
       container.innerHTML = '';
-      info.textContent = 'Tapez un titre pour commencer la recherche.';
+      info.textContent = 'Tapez un titre ou cliquez sur une suggestion ci-dessus pour lancer la recherche.';
       return;
     }
 
@@ -96,14 +126,19 @@ export class SearchPage {
       results.forEach((m) => {
         this.storage.saveMedia(m);
         const card = this.ui.renderCard(m, {
-          clickable: true, showFav: true, isFavorite: this.storage.isFavorite(m.id),
+          clickable: true,
+          showFav: true,
+          isFavorite: this.storage.isFavorite(m.id),
         });
         card._onClick = (media) => this.router.navigate(this.config.routes.detail(media.id));
-        card.querySelector('.anime-fav')._onToggle = (id) => {
-          const added = this.storage.toggleFavorite(id);
-          this.ui.toast(added ? 'Ajouté aux favoris' : 'Retiré des favoris');
-          return added;
-        };
+        const favBtn = card.querySelector('.anime-fav');
+        if (favBtn) {
+          favBtn._onToggle = (id) => {
+            const added = this.storage.toggleFavorite(id);
+            this.ui.toast(added ? 'Ajouté aux favoris' : 'Retiré des favoris');
+            return added;
+          };
+        }
         container.appendChild(card);
       });
       this._renderPagination(pagination, data.pageInfo);
@@ -118,7 +153,12 @@ export class SearchPage {
 
   async _fetchSearch() {
     try {
-      return await this.anilist.searchMedia({ search: this.query, page: this.page, perPage: 20, sort: 'SEARCH_MATCH' });
+      return await this.anilist.searchMedia({
+        search: this.query,
+        page: this.page,
+        perPage: 20,
+        sort: 'SEARCH_MATCH',
+      });
     } catch (error) {
       const { searchDemoAnimes } = await import('../demo-data.js');
       return searchDemoAnimes(this.query, { page: this.page, perPage: 20 });
@@ -129,16 +169,37 @@ export class SearchPage {
     const { currentPage = 1, lastPage = 1, hasNextPage = false } = pageInfo;
     container.innerHTML = '';
     if (lastPage <= 1) return;
+
     const prev = document.createElement('button');
-    prev.className = 'btn pag-btn'; prev.textContent = 'Précédent';
+    prev.className = 'btn pag-btn';
+    prev.textContent = '← Précédent';
     prev.disabled = currentPage <= 1;
-    prev.onclick = () => { if (currentPage > 1) { this.page--; this.load(); } };
+    prev.onclick = () => {
+      if (currentPage > 1) {
+        this.page--;
+        this.load();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    };
+
     const next = document.createElement('button');
-    next.className = 'btn pag-btn'; next.textContent = 'Suivant';
+    next.className = 'btn pag-btn';
+    next.textContent = 'Suivant →';
     next.disabled = !hasNextPage;
-    next.onclick = () => { if (hasNextPage) { this.page++; this.load(); } };
+    next.onclick = () => {
+      if (hasNextPage) {
+        this.page++;
+        this.load();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    };
+
     const info = document.createElement('span');
-    info.className = 'page-info'; info.textContent = `Page ${currentPage} / ${lastPage}`;
-    container.appendChild(prev); container.appendChild(info); container.appendChild(next);
+    info.className = 'page-info';
+    info.textContent = `Page ${currentPage} / ${lastPage}`;
+
+    container.appendChild(prev);
+    container.appendChild(info);
+    container.appendChild(next);
   }
 }

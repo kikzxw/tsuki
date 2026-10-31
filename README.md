@@ -27,17 +27,21 @@ If deploying from **Cloudflare Workers Builds** in the dashboard, add `ANIMEDOC_
 
 ## Main features
 
-- Live trending, top-rated, genre, movie, search, and detail views
-- Anime summaries, covers, ratings, episode counts, characters, and staff
-- Favorites, custom lists, and a 50-item viewing history stored locally
-- Responsive sakura-pink dark theme, keyboard-accessible navigation, reduced-motion support
-- PWA install and offline shell cache
+- Multi-server anime & movie video player (Frembed VF/VOSTFR, VidSrc HD, Direct HLS, Official Trailers, and offline Demo stream)
+- Smart episode selector with range pagination (1-25, 26-50...), direct episode jump, and watched progress tracking
+- Responsive Sakura-pink dark & light theme, mobile bottom navigation bar, cinema mode, and gentle falling petal animations
+- Live trending, top-rated, genre, movie, search, and detail views from AniList
+- Anime summaries, covers, ratings, episode counts, characters, staff, and external streaming links
+- Favorites, custom marathon lists, and viewing history stored locally in the browser
+- Keyboard shortcuts (`N`/`P` for next/previous episodes, `C` for cinema mode, `F` for fullscreen)
+- PWA install and offline shell cache (Service Worker v6)
 
 ## Project map
 
-- `index.html`, `styles/main.css`: app shell and design system
+- `index.html`, `styles/main.css`: app shell, responsive layouts, and Sakura design system
 - `icons/`: PWA and browser icons
+- `scripts/api/`: AniList, Frembed, AnimeDoc, and unified `streaming.js` engine
 - `scripts/pages/`: home, catalogue, search, detail, player, favorites, lists, history, preferences
-- `scripts/storage.js`: local library and settings
-- `src/worker.js`: static assets and server-side catalogue credential relay
-- `sw.js`: offline app shell
+- `scripts/storage.js`: local library, watched episodes, and settings
+- `src/worker.js`: Cloudflare Worker static assets and server-side catalogue relay
+- `sw.js`: offline app shell and cache
