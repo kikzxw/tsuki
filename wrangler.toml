@@ -7,9 +7,9 @@ main = "src/worker.js"
 compatibility_date = "2024-11-01"
 workers_dev = true
 
-# Assets statiques servis par le worker
+# Assets statiques servis par le worker (dossier du projet)
 [assets]
-directory = "/"
+directory = "."
 
 # Variables d'environnement
 [vars]
