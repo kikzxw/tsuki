@@ -23,11 +23,10 @@ export const config = {
   },
 
   // --- API PRINCIPALE : AnimeDoc ---
-  // Cle API configuree pour le deploiement sur tsuki.kikzxw.workers.dev
-  // Peut etre surchargee via localStorage (cle 'tsuki_animedoc_key') ou dans Parametres.
+  // La clé est saisie par l'utilisateur dans Paramètres et reste dans son navigateur.
   animedoc: {
     baseURL: 'https://api.animedoc.cloud',
-    apiKey: 'ad_live_5XusuAeCaqy6tJPjbsSOuzj_a8uo4ru85nxCAancKwE',
+    apiKey: '',
     timeout: 15000,
   },
 

@@ -4,9 +4,10 @@
    ========================================================================== */
 
 export class Router {
-  constructor({ outlet, onRouteChange } = {}) {
+  constructor({ outlet, onRouteChange, dependencies = {} } = {}) {
     this.outlet = outlet;
     this.onRouteChange = onRouteChange;
+    this.dependencies = dependencies;
     this.routes = new Map();
     this.currentPath = '/';
     this._initListeners();
@@ -24,7 +25,8 @@ export class Router {
   }
 
   _resolve(path) {
-    let clean = path.replace(/^\/+/, '').replace(/\/+$/, '').split('?')[0].split('#')[0] || '/';
+    const routePath = path.split('?')[0].split('#')[0].replace(/^\/+/, '').replace(/\/+$/, '');
+    const clean = routePath ? `/${routePath}` : '/';
 
     if (this.routes.has(clean)) {
       return { pattern: clean, params: {}, component: this.routes.get(clean).page };
@@ -101,7 +103,7 @@ export class Router {
 
     try {
       const Page = component;
-      const pageInstance = new Page({ router: this });
+      const pageInstance = new Page({ ...this.dependencies, router: this, params });
       const el = await pageInstance.render();
       if (this.outlet) {
         this.outlet.innerHTML = '';

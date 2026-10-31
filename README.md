@@ -71,7 +71,7 @@ tsuki/
 | **AniList** (`graphql.anilist.co`) | Fallback métadonnées (gratuit, sans clé) | Non |
 | **Frembed** (`frembed.uno`) | Fallback lecture (gratuit, sans clé) | Non |
 
-La clé API AnimeDoc est déjà configurée dans `scripts/config.js`. Elle peut être surchargée via localStorage ou dans la page **Paramètres** (⚙️).
+La clé API AnimeDoc se configure depuis la page **Paramètres** (⚙️) et reste dans le stockage local du navigateur. Le catalogue de démonstration et la recherche restent disponibles sans clé.
 
 ## ✨ Fonctionnalités
 

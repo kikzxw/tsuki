@@ -61,7 +61,7 @@ export class HomePage {
 
   async _fetchDemo({ sort = 'popular', genre = null, perPage = 20, page = 1 } = {}) {
     const { getDemoAnimes } = await import('../demo-data.js');
-    return getDemoAnimes({ page, perPage, genre });
+    return getDemoAnimes({ page, perPage, genre, sort });
   }
 
   async _loadSection(containerId, loader) {

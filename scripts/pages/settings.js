@@ -164,8 +164,3 @@ export class SettingsPage {
     }
   }
 }
-
-// Helper storage.getItem si pas défini sur Storage
-if (!Storage.prototype.getItem) {
-  // rien, on utilise localStorage directement dans la page
-}

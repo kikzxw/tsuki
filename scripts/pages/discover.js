@@ -68,6 +68,9 @@ export class DiscoverPage {
   }
 
   async onMount() {
+    const query = new URLSearchParams(window.location.hash.split('?')[1] || '');
+    if (query.get('sort') === 'score') this.filters.sort = 'score';
+    if (query.has('genre')) this.filters.genre = query.get('genre');
     this._bindFilters();
     await this.load();
   }
@@ -130,7 +133,13 @@ export class DiscoverPage {
 
   async _fetchAnimes() {
     const { getDemoAnimes } = await import('../demo-data.js');
-    return getDemoAnimes({ page: this.filters.page, perPage: 20, genre: this.filters.genre });
+    return getDemoAnimes({
+      page: this.filters.page,
+      perPage: 20,
+      genre: this.filters.genre,
+      format: this.filters.format,
+      sort: this.filters.sort,
+    });
   }
 
   _renderPagination(container, pageInfo) {

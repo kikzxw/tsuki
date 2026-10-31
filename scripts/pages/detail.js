@@ -3,13 +3,14 @@
    ========================================================================== */
 
 export class DetailPage {
-  constructor({ router, anilist, animedoc, frembed, ui, storage } = {}) {
+  constructor({ router, anilist, animedoc, frembed, ui, storage, params = {} } = {}) {
     this.router = router;
     this.anilist = anilist;
     this.animedoc = animedoc;
     this.frembed = frembed;
     this.ui = ui;
     this.storage = storage;
+    this.params = params;
     this.element = null;
     this.mediaId = null;
     this.media = null;
@@ -70,13 +71,12 @@ export class DetailPage {
     const btnBack = this.element.querySelector('#detail-back');
     btnBack.onclick = () => this.router.navigate('/');
 
-    const path = window.location.pathname;
-    const match = path.match(/^\/anime\/([^\/]+)$/);
-    if (!match) {
+    const mediaId = this.params.id;
+    if (!mediaId) {
       this.element.querySelector('#detail-title').textContent = 'Anime introuvable';
       return;
     }
-    this.mediaId = match[1];
+    this.mediaId = mediaId;
     await this.load();
   }
 

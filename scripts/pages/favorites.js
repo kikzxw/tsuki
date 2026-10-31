@@ -49,9 +49,10 @@ export class FavoritesPage {
     container.appendChild(this.ui.renderSkeleton(ids.length));
 
     const loaded = [];
+    const { getDemoAnime } = await import('../demo-data.js');
     for (const id of ids) {
       try {
-        const media = await this.anilist.getMedia(id);
+        const media = getDemoAnime(id) || await this.anilist.getMedia(id);
         if (!media) continue;
         loaded.push(media);
       } catch (e) {

@@ -96,7 +96,10 @@
             if (savedKey) animedoc.setApiKey(savedKey);
 
             const ui = new UI();
-            const router = new Router({ outlet: document.getElementById('router-outlet') });
+            const router = new Router({
+                outlet: document.getElementById('router-outlet'),
+                dependencies: { storage, cache, anilist, frembed, animedoc, ui, config },
+            });
 
             // Enregistrer les pages
             router.register('/', HomePage);
@@ -129,6 +132,12 @@
             });
 
             await app.init();
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch((error) => {
+                console.warn('Service worker indisponible', error);
+            });
+        }
         });
 
         // Pages statiques simples

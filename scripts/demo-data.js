@@ -62,13 +62,17 @@ export function getDemoAnime(id) {
   return DEMO_ANIMES.find((a) => a.id === String(id)) || null;
 }
 
-export function getDemoAnimes({ page = 1, perPage = 20, genre = null, search = '' } = {}) {
+export function getDemoAnimes({ page = 1, perPage = 20, genre = null, format = null, sort = 'popular', search = '' } = {}) {
   let list = [...DEMO_ANIMES];
   if (genre) list = list.filter((a) => a.genres.includes(genre));
+  if (format) list = list.filter((a) => a.format === format);
   if (search) {
     const s = search.toLowerCase();
     list = list.filter((a) => a.title.toLowerCase().includes(s) || a.titleRomaji.toLowerCase().includes(s));
   }
+  list.sort((a, b) => sort === 'score'
+    ? b.averageScore - a.averageScore
+    : b.popularity - a.popularity);
   const total = list.length;
   const start = (page - 1) * perPage;
   const results = list.slice(start, start + perPage);
